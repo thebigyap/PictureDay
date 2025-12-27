@@ -11,13 +11,21 @@ namespace PictureDay.Services
     public class StorageManager
     {
         private readonly string _baseDirectory;
-        private readonly int _quality;
+        private int _quality;
+        private string _imageFormat;
 
-        public StorageManager(string baseDirectory, int quality = 90)
+        public StorageManager(string baseDirectory, int quality = 90, string imageFormat = "JPEG")
         {
             _baseDirectory = baseDirectory;
             _quality = quality;
+            _imageFormat = imageFormat;
             EnsureDirectoryExists(_baseDirectory);
+        }
+
+        public void UpdateSettings(int quality, string imageFormat)
+        {
+            _quality = quality;
+            _imageFormat = imageFormat;
         }
 
         private void EnsureDirectoryExists(string path)
@@ -36,21 +44,28 @@ namespace PictureDay.Services
             return fullPath;
         }
 
-        public string GenerateFileName(DateTime dateTime, bool isBackup = false)
+        public string GenerateFileName(DateTime dateTime, bool isBackup = false, string format = "JPEG")
         {
             string prefix = isBackup ? "backup_" : "";
-            return $"{prefix}{dateTime:yyyy-MM-dd_HH-mm-ss}.jpg";
+            string extension = format.ToUpper() == "PNG" ? "png" : "jpg";
+            return $"{prefix}{dateTime:yyyy-MM-dd_HH-mm-ss}.{extension}";
         }
 
         public string SaveScreenshot(Bitmap bitmap, bool isBackup = false)
         {
             DateTime now = DateTime.Now;
             string monthlyDir = GetMonthlyDirectory(now);
-            string fileName = GenerateFileName(now, isBackup);
+            string fileName = GenerateFileName(now, isBackup, _imageFormat);
             string fullPath = Path.Combine(monthlyDir, fileName);
 
             try
             {
+                if (_imageFormat.ToUpper() == "PNG")
+                {
+                    bitmap.Save(fullPath, ImageFormat.Png);
+                    return fullPath;
+                }
+
                 ImageCodecInfo? jpegCodec = ImageCodecInfo.GetImageEncoders()
                     .FirstOrDefault(codec => codec.FormatID == ImageFormat.Jpeg.Guid);
 
@@ -101,8 +116,13 @@ namespace PictureDay.Services
                 string monthDir = Path.Combine(_baseDirectory, current.ToString("yyyy-MM"));
                 if (Directory.Exists(monthDir))
                 {
-                    var files = Directory.GetFiles(monthDir, "*.jpg")
-                        .Where(f => !Path.GetFileName(f).StartsWith("backup_", StringComparison.OrdinalIgnoreCase))
+                    var files = Directory.GetFiles(monthDir, "*.*")
+                        .Where(f =>
+                        {
+                            string ext = Path.GetExtension(f).ToLower();
+                            return (ext == ".jpg" || ext == ".png") &&
+                                   !Path.GetFileName(f).StartsWith("backup_", StringComparison.OrdinalIgnoreCase);
+                        })
                         .Select(f => new FileInfo(f))
                         .Where(fi => fi.CreationTime >= startDate && fi.CreationTime <= endDate.AddDays(1))
                         .OrderByDescending(fi => fi.CreationTime);

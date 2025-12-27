@@ -10,7 +10,13 @@
 	WindowStartupLocation="CenterScreen"
 	Closing="Window_Closing">
 	<Grid>
-	<TabControl x:Name="MainTabControl">
+	<Grid.RowDefinitions>
+		<RowDefinition Height="Auto"/>
+		<RowDefinition Height="*"/>
+	</Grid.RowDefinitions>
+	<Button x:Name="TakeScreenshotButton" Grid.Row="0" Content="Take Screenshot Now"
+		Height="35" Margin="10" HorizontalAlignment="Left" Click="TakeScreenshotButton_Click"/>
+	<TabControl x:Name="MainTabControl" Grid.Row="1">
 	<TabItem Header="Photo Gallery">
 	<views:PhotoGalleryView x:Name="PhotoGalleryViewControl"/>
 	</TabItem>

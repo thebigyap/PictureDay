@@ -14,6 +14,9 @@ namespace PictureDay
         private NotifyIcon? _notifyIcon;
         private ConfigManager? _configManager;
         private DailyScheduler? _dailyScheduler;
+        private ScreenshotService? _screenshotService;
+        private PrivacyFilter? _privacyFilter;
+        private StorageManager? _storageManager;
 
         [DllImport("kernel32.dll")]
         private static extern bool AllocConsole();
@@ -32,23 +35,24 @@ namespace PictureDay
                 Console.WriteLine($"Config loaded. Screenshot directory: {_configManager.Config.ScreenshotDirectory}");
 
                 Console.WriteLine("Initializing StorageManager...");
-                var storageManager = new StorageManager(
+                _storageManager = new StorageManager(
                     _configManager.Config.ScreenshotDirectory,
-                    _configManager.Config.Quality);
+                    _configManager.Config.Quality,
+                    _configManager.Config.ImageFormat);
 
                 Console.WriteLine("Initializing ActivityMonitor...");
                 var activityMonitor = new ActivityMonitor();
                 Console.WriteLine("Initializing PrivacyFilter...");
-                var privacyFilter = new PrivacyFilter(_configManager);
+                _privacyFilter = new PrivacyFilter(_configManager);
                 Console.WriteLine("Initializing ScreenshotService...");
-                var screenshotService = new ScreenshotService(storageManager);
+                _screenshotService = new ScreenshotService(_storageManager, _configManager);
                 Console.WriteLine("Initializing DailyScheduler...");
                 _dailyScheduler = new DailyScheduler(
                     _configManager,
                     activityMonitor,
-                    privacyFilter,
-                    screenshotService,
-                    storageManager);
+                    _privacyFilter,
+                    _screenshotService,
+                    _storageManager);
                 _dailyScheduler.Start();
                 Console.WriteLine("DailyScheduler started.");
                 Console.WriteLine("Setting up system tray...");
@@ -60,8 +64,9 @@ namespace PictureDay
                     MainWindow.Hide();
                 }
                 Resources["ConfigManager"] = _configManager;
-                Resources["StorageManager"] = storageManager;
+                Resources["StorageManager"] = _storageManager;
                 Resources["DailyScheduler"] = _dailyScheduler;
+                Resources["ScreenshotService"] = _screenshotService;
                 Console.WriteLine("PictureDay started successfully!");
                 Console.WriteLine("Press any key to close this console (app will continue running)...");
             }
@@ -111,6 +116,8 @@ namespace PictureDay
             };
 
             ContextMenuStrip contextMenu = new ContextMenuStrip();
+            contextMenu.Items.Add("Take Screenshot Now", null, (s, e) => TakeManualScreenshot());
+            contextMenu.Items.Add("-");
             contextMenu.Items.Add("Show PictureDay", null, (s, e) =>
             {
                 MainWindow.Show();
@@ -130,6 +137,41 @@ namespace PictureDay
             contextMenu.Items.Add("-");
             contextMenu.Items.Add("Exit", null, (s, e) => Shutdown());
             _notifyIcon.ContextMenuStrip = contextMenu;
+        }
+
+        private void TakeManualScreenshot()
+        {
+            if (_screenshotService == null || _privacyFilter == null || _storageManager == null)
+            {
+                System.Windows.MessageBox.Show("Screenshot service not available.", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            if (_privacyFilter.ShouldBlockScreenshot())
+            {
+                _notifyIcon?.ShowBalloonTip(3000, "PictureDay",
+                    "Screenshot blocked: Privacy filter detected blocked applications or private browsing mode.",
+                    System.Windows.Forms.ToolTipIcon.Info);
+                return;
+            }
+
+            string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false);
+            if (!string.IsNullOrEmpty(screenshotPath))
+            {
+                _notifyIcon?.ShowBalloonTip(3000, "PictureDay",
+                    $"Screenshot saved successfully!", System.Windows.Forms.ToolTipIcon.Info);
+
+                if (MainWindow is MainWindow mainWin)
+                {
+                    mainWin.RefreshGallery();
+                }
+            }
+            else
+            {
+                _notifyIcon?.ShowBalloonTip(3000, "PictureDay",
+                    "Failed to capture screenshot.", System.Windows.Forms.ToolTipIcon.Error);
+            }
         }
 
         protected override void OnExit(System.Windows.ExitEventArgs e)

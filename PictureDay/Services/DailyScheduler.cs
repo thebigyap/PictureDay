@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using PictureDay.Models;
 using Timer = System.Threading.Timer;
 
 namespace PictureDay.Services
@@ -121,7 +122,7 @@ namespace PictureDay.Services
             if (_configManager.Config.TodayScheduledTime == null ||
                 _configManager.Config.LastScreenshotDate?.Date != now.Date)
             {
-                _scheduledTime = PickRandomTime();
+                _scheduledTime = DetermineScheduledTime();
                 _configManager.Config.TodayScheduledTime = _scheduledTime;
                 _configManager.SaveConfig();
             }
@@ -134,6 +135,44 @@ namespace PictureDay.Services
             _hasBackupScreenshot = false;
             _backupScreenshotPath = null;
             _waitingForBackupDelay = false;
+        }
+
+        private TimeSpan DetermineScheduledTime()
+        {
+            switch (_configManager.Config.ScheduleMode)
+            {
+                case ScheduleMode.FixedTime:
+                    if (_configManager.Config.FixedScheduledTime.HasValue)
+                    {
+                        return _configManager.Config.FixedScheduledTime.Value;
+                    }
+                    break;
+
+                case ScheduleMode.TimeRange:
+                    if (_configManager.Config.ScheduleRangeStart.HasValue &&
+                        _configManager.Config.ScheduleRangeEnd.HasValue)
+                    {
+                        return PickRandomTimeInRange(
+                            _configManager.Config.ScheduleRangeStart.Value,
+                            _configManager.Config.ScheduleRangeEnd.Value);
+                    }
+                    break;
+
+                case ScheduleMode.Random:
+                default:
+                    return PickRandomTime();
+            }
+
+            return PickRandomTime();
+        }
+
+        private TimeSpan PickRandomTimeInRange(TimeSpan start, TimeSpan end)
+        {
+            Random random = new Random();
+            int startMinutes = (int)start.TotalMinutes;
+            int endMinutes = (int)end.TotalMinutes;
+            int randomMinutes = random.Next(startMinutes, endMinutes);
+            return TimeSpan.FromMinutes(randomMinutes);
         }
 
         private void CheckForOrphanedBackups(DateTime currentDate)
