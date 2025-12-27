@@ -1,0 +1,22 @@
+<Window x:Class="PictureDay.MainWindow"
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	xmlns:local="clr-namespace:PictureDay"
+	xmlns:views="clr-namespace:PictureDay.Views"
+	mc:Ignorable="d"
+	Title="PictureDay" Height="600" Width="900"
+	WindowStartupLocation="CenterScreen"
+	Closing="Window_Closing">
+	<Grid>
+	<TabControl x:Name="MainTabControl">
+	<TabItem Header="Photo Gallery">
+	<views:PhotoGalleryView x:Name="PhotoGalleryViewControl"/>
+	</TabItem>
+	<TabItem Header="Settings">
+	<views:SettingsView x:Name="SettingsViewControl"/>
+	</TabItem>
+	</TabControl>
+	</Grid>
+</Window>
