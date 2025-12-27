@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
+    <Grid Background="{DynamicResource BackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -13,10 +13,10 @@
 
         <!-- Navigation Controls -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10" HorizontalAlignment="Center">
-            <Button x:Name="PrevMonthButton" Content="&lt;" Width="40" Height="30" Margin="5" Click="PrevMonthButton_Click"/>
-            <ComboBox x:Name="MonthComboBox" Width="120" Height="30" Margin="5" SelectionChanged="MonthComboBox_SelectionChanged"/>
-            <ComboBox x:Name="YearComboBox" Width="80" Height="30" Margin="5" SelectionChanged="YearComboBox_SelectionChanged"/>
-            <Button x:Name="NextMonthButton" Content="&gt;" Width="40" Height="30" Margin="5" Click="NextMonthButton_Click"/>
+            <Button x:Name="PrevMonthButton" Content="&lt;" Padding="8,4" Margin="5,0" Click="PrevMonthButton_Click"/>
+            <ComboBox x:Name="MonthComboBox" MinWidth="120" Margin="5,0" SelectionChanged="MonthComboBox_SelectionChanged"/>
+            <ComboBox x:Name="YearComboBox" MinWidth="80" Margin="5,0" SelectionChanged="YearComboBox_SelectionChanged"/>
+            <Button x:Name="NextMonthButton" Content="&gt;" Padding="8,4" Margin="5,0" Click="NextMonthButton_Click"/>
         </StackPanel>
 
         <!-- Photo Gallery -->
@@ -24,23 +24,23 @@
             <ItemsControl x:Name="PhotosItemsControl" Margin="10">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <UniformGrid Columns="4" HorizontalAlignment="Center"/>
+                        <UniformGrid Columns="3" HorizontalAlignment="Center"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="LightGray" BorderThickness="1" Margin="5" Padding="5">
+                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="5" Padding="5" CornerRadius="3" Background="{DynamicResource BackgroundBrush}">
                             <StackPanel>
-                                <Image Source="{Binding ImageSource}"
-                                       Width="150"
-                                       Height="100"
-                                       Stretch="Uniform"
-                                       MouseLeftButtonDown="Image_MouseLeftButtonDown"
-                                       Cursor="Hand"/>
+                                <Viewbox Width="250" Height="100" Stretch="Uniform">
+                                    <Image Source="{Binding ImageSource}"
+                                           MouseLeftButtonDown="Image_MouseLeftButtonDown"
+                                           Cursor="Hand"/>
+                                </Viewbox>
                                 <TextBlock Text="{Binding DateLabel}"
                                            HorizontalAlignment="Center"
                                            Margin="0,5,0,0"
-                                           FontSize="10"/>
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextBrush}"/>
                             </StackPanel>
                         </Border>
                     </DataTemplate>

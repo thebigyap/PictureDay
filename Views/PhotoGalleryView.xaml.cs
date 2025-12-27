@@ -86,7 +86,7 @@ namespace PictureDay.Views
             BitmapImage bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.UriSource = new Uri(filePath);
-            bitmap.DecodePixelWidth = 150;
+            bitmap.DecodePixelWidth = 250;
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
             bitmap.EndInit();
             bitmap.Freeze();
@@ -112,6 +112,20 @@ namespace PictureDay.Views
                     return;
                 }
 
+                // Get all screenshots for the current month, sorted by date
+                List<ScreenshotMetadata> allScreenshots = new List<ScreenshotMetadata>();
+                if (_storageManager != null)
+                {
+                    allScreenshots = _storageManager.GetScreenshotsByMonth(_currentYear, _currentMonth)
+                        .Where(s => File.Exists(s.FilePath))
+                        .OrderBy(s => s.DateTaken)
+                        .ToList();
+                }
+
+                // Find current image index
+                int currentIndex = allScreenshots.FindIndex(s => s.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
+                if (currentIndex < 0) currentIndex = 0;
+
                 Window imageWindow = new Window
                 {
                     Title = $"Screenshot - {Path.GetFileName(filePath)}",
@@ -120,33 +134,59 @@ namespace PictureDay.Views
                     WindowStartupLocation = WindowStartupLocation.CenterOwner
                 };
 
-                BitmapImage fullResolutionImage = new BitmapImage();
-                fullResolutionImage.BeginInit();
-                fullResolutionImage.UriSource = new Uri(filePath);
-                fullResolutionImage.CacheOption = BitmapCacheOption.OnLoad;
-                fullResolutionImage.EndInit();
-                fullResolutionImage.Freeze();
-
                 System.Windows.Controls.Image fullImage = new System.Windows.Controls.Image
                 {
-                    Source = fullResolutionImage,
                     Stretch = System.Windows.Media.Stretch.Uniform
                 };
 
-                Grid grid = new Grid();
-                grid.Children.Add(fullImage);
-
-                ScrollViewer scrollViewer = new ScrollViewer
+                System.Windows.Controls.Button leftArrow = new System.Windows.Controls.Button
                 {
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    Content = grid
+                    Content = "◀",
+                    FontSize = 24,
+                    Width = 50,
+                    Height = 50,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    Margin = new Thickness(10, 0, 0, 0),
+                    Padding = new Thickness(0),
+                    Visibility = currentIndex < allScreenshots.Count - 1 ? Visibility.Visible : Visibility.Hidden
                 };
 
-                imageWindow.Content = scrollViewer;
-
-                imageWindow.Loaded += (s, e) =>
+                System.Windows.Controls.Button rightArrow = new System.Windows.Controls.Button
                 {
+                    Content = "▶",
+                    FontSize = 24,
+                    Width = 50,
+                    Height = 50,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 10, 0),
+                    Padding = new Thickness(0),
+                    Visibility = currentIndex > 0 ? Visibility.Visible : Visibility.Hidden
+                };
+
+                Action<int> loadImage = (index) =>
+                {
+                    if (index < 0 || index >= allScreenshots.Count) return;
+
+                    var screenshot = allScreenshots[index];
+                    if (!File.Exists(screenshot.FilePath)) return;
+
+                    BitmapImage fullResolutionImage = new BitmapImage();
+                    fullResolutionImage.BeginInit();
+                    fullResolutionImage.UriSource = new Uri(screenshot.FilePath);
+                    fullResolutionImage.CacheOption = BitmapCacheOption.OnLoad;
+                    fullResolutionImage.EndInit();
+                    fullResolutionImage.Freeze();
+
+                    fullImage.Source = fullResolutionImage;
+                    imageWindow.Title = $"Screenshot - {Path.GetFileName(screenshot.FilePath)}";
+
+                    // Update arrow visibility (reversed: left arrow goes forward, right arrow goes backward)
+                    leftArrow.Visibility = index < allScreenshots.Count - 1 ? Visibility.Visible : Visibility.Hidden;
+                    rightArrow.Visibility = index > 0 ? Visibility.Visible : Visibility.Hidden;
+
+                    // Update image size
                     if (fullResolutionImage.Width > 0 && fullResolutionImage.Height > 0)
                     {
                         double windowWidth = imageWindow.ActualWidth;
@@ -171,14 +211,58 @@ namespace PictureDay.Views
                     }
                 };
 
+                int currentImageIndex = currentIndex;
+                leftArrow.Click += (s, args) =>
+                {
+                    if (currentImageIndex < allScreenshots.Count - 1)
+                    {
+                        currentImageIndex++;
+                        loadImage(currentImageIndex);
+                    }
+                };
+
+                rightArrow.Click += (s, args) =>
+                {
+                    if (currentImageIndex > 0)
+                    {
+                        currentImageIndex--;
+                        loadImage(currentImageIndex);
+                    }
+                };
+
+                Grid grid = new Grid();
+                grid.Children.Add(fullImage);
+                grid.Children.Add(leftArrow);
+                grid.Children.Add(rightArrow);
+
+                ScrollViewer scrollViewer = new ScrollViewer
+                {
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = grid
+                };
+
+                imageWindow.Content = scrollViewer;
+                imageWindow.Owner = System.Windows.Application.Current.MainWindow;
+                imageWindow.ShowActivated = true;
+
+                // Load initial image
+                loadImage(currentIndex);
+
+                imageWindow.Loaded += (s, e) =>
+                {
+                    imageWindow.Activate();
+                    imageWindow.Focus();
+                };
+
                 imageWindow.SizeChanged += (s, e) =>
                 {
-                    if (fullResolutionImage.Width > 0 && fullResolutionImage.Height > 0)
+                    if (fullImage.Source is BitmapImage currentImage && currentImage.Width > 0 && currentImage.Height > 0)
                     {
                         double windowWidth = imageWindow.ActualWidth;
                         double windowHeight = imageWindow.ActualHeight;
-                        double imageWidth = fullResolutionImage.Width;
-                        double imageHeight = fullResolutionImage.Height;
+                        double imageWidth = currentImage.Width;
+                        double imageHeight = currentImage.Height;
 
                         double widthRatio = windowWidth / imageWidth;
                         double heightRatio = windowHeight / imageHeight;

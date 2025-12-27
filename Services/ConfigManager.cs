@@ -35,14 +35,20 @@ namespace PictureDay.Services
                 {
                     string json = File.ReadAllText(_configPath);
                     _config = JsonConvert.DeserializeObject<AppConfig>(json) ?? new AppConfig();
+                    System.Diagnostics.Debug.WriteLine($"Config loaded - Theme: {_config.Theme}, BlockedApps: {_config.BlockedApplications.Count}");
+                    Console.WriteLine($"Config loaded - Theme: {_config.Theme}, BlockedApps: {_config.BlockedApplications.Count}");
                 }
-                catch
+                catch (Exception ex)
                 {
+                    System.Diagnostics.Debug.WriteLine($"Error loading config: {ex.Message}\nStack trace: {ex.StackTrace}");
+                    Console.WriteLine($"Error loading config: {ex.Message}");
                     _config = new AppConfig();
                 }
             }
             else
             {
+                System.Diagnostics.Debug.WriteLine($"Config file not found at: {_configPath}, using defaults");
+                Console.WriteLine($"Config file not found at: {_configPath}, using defaults");
                 _config = new AppConfig();
             }
 
@@ -58,13 +64,40 @@ namespace PictureDay.Services
         {
             try
             {
+                // Ensure directory exists
+                string? configDir = Path.GetDirectoryName(_configPath);
+                if (!string.IsNullOrEmpty(configDir) && !Directory.Exists(configDir))
+                {
+                    Directory.CreateDirectory(configDir);
+                }
+
                 string json = JsonConvert.SerializeObject(_config, Formatting.Indented);
                 File.WriteAllText(_configPath, json);
                 UpdateStartupRegistry();
+                System.Diagnostics.Debug.WriteLine($"Config saved successfully to: {_configPath}");
+                Console.WriteLine($"Config saved successfully to: {_configPath}");
+
+                // Verify the file was written
+                if (File.Exists(_configPath))
+                {
+                    string savedJson = File.ReadAllText(_configPath);
+                    var verifyConfig = JsonConvert.DeserializeObject<AppConfig>(savedJson);
+                    if (verifyConfig != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Config verified - Theme: {verifyConfig.Theme}, BlockedApps: {verifyConfig.BlockedApplications.Count}");
+                        Console.WriteLine($"Config verified - Theme: {verifyConfig.Theme}, BlockedApps: {verifyConfig.BlockedApplications.Count}");
+                    }
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error saving config: {ex.Message}");
+                string errorMsg = $"Error saving config: {ex.Message}\nStack trace: {ex.StackTrace}";
+                System.Diagnostics.Debug.WriteLine(errorMsg);
+                Console.WriteLine(errorMsg);
+                System.Windows.MessageBox.Show($"Failed to save configuration:\n{ex.Message}\n\nPath: {_configPath}",
+                    "Configuration Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
             }
         }
 

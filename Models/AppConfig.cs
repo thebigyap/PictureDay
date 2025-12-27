@@ -25,6 +25,7 @@ namespace PictureDay.Models
         public TimeSpan? ScheduleRangeEnd { get; set; }
         public bool CaptureAllMonitors { get; set; } = false;
         public int SelectedMonitorIndex { get; set; } = 0;
+        public string Theme { get; set; } = "Light";
     }
 }
 

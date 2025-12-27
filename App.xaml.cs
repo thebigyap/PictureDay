@@ -9,7 +9,7 @@ namespace PictureDay
 {
     public partial class App : Application
     {
-        public const string Version = "1.1.1";
+        public const string Version = "1.2.1";
 
         private NotifyIcon? _notifyIcon;
         private ConfigManager? _configManager;
@@ -32,6 +32,9 @@ namespace PictureDay
                 Console.WriteLine("PictureDay starting...");
                 Console.WriteLine("Initializing ConfigManager...");
                 _configManager = new ConfigManager();
+
+                string theme = _configManager.Config.Theme ?? "Light";
+                ApplyTheme(theme);
                 Console.WriteLine($"Config loaded. Screenshot directory: {_configManager.Config.ScreenshotDirectory}");
 
                 Console.WriteLine("Initializing StorageManager...");
@@ -172,6 +175,24 @@ namespace PictureDay
                 _notifyIcon?.ShowBalloonTip(3000, "PictureDay",
                     "Failed to capture screenshot.", System.Windows.Forms.ToolTipIcon.Error);
             }
+        }
+
+        public void ApplyTheme(string theme)
+        {
+            var mergedDicts = Resources.MergedDictionaries;
+            mergedDicts.Clear();
+
+            ResourceDictionary themeDict = new ResourceDictionary();
+            if (theme == "Dark")
+            {
+                themeDict.Source = new Uri("Themes/DarkTheme.xaml", UriKind.Relative);
+            }
+            else
+            {
+                themeDict.Source = new Uri("Themes/LightTheme.xaml", UriKind.Relative);
+            }
+
+            mergedDicts.Add(themeDict);
         }
 
         protected override void OnExit(System.Windows.ExitEventArgs e)

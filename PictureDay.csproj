@@ -15,4 +15,9 @@
 	<PackageReference Include="System.Drawing.Common" Version="8.0.0" />
 </ItemGroup>
 
+<ItemGroup>
+	<Resource Include="Themes\LightTheme.xaml" />
+	<Resource Include="Themes\DarkTheme.xaml" />
+</ItemGroup>
+
 </Project>

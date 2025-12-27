@@ -60,6 +60,16 @@ namespace PictureDay.Views
                 }
             }
 
+            string theme = _configManager.Config.Theme ?? "Light";
+            foreach (ComboBoxItem item in ThemeComboBox.Items)
+            {
+                if (item.Tag?.ToString() == theme)
+                {
+                    ThemeComboBox.SelectedItem = item;
+                    break;
+                }
+            }
+
             UpdateQualityUI();
 
             ScheduleModeComboBox.SelectedIndex = (int)_configManager.Config.ScheduleMode;
@@ -240,7 +250,8 @@ namespace PictureDay.Views
                 Title = "Select Running Process",
                 Width = 400,
                 Height = 500,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = (System.Windows.Media.Brush)System.Windows.Application.Current.Resources["BackgroundBrush"]
             };
 
             ListBox processListBox = new ListBox
@@ -269,11 +280,19 @@ namespace PictureDay.Views
                 return;
             }
 
+            ScrollViewer scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = processListBox,
+                Margin = new Thickness(10, 10, 10, 0),
+                MaxHeight = 400
+            };
+
             Button selectButton = new Button
             {
                 Content = "Select",
-                Width = 100,
-                Height = 30,
+                Padding = new Thickness(15, 5, 15, 5),
                 Margin = new Thickness(10),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center
             };
@@ -292,7 +311,7 @@ namespace PictureDay.Views
             };
 
             StackPanel panel = new StackPanel();
-            panel.Children.Add(processListBox);
+            panel.Children.Add(scrollViewer);
             panel.Children.Add(selectButton);
 
             processWindow.Content = panel;
@@ -318,11 +337,14 @@ namespace PictureDay.Views
 
             try
             {
+                // Save blocked applications
                 _configManager.Config.BlockedApplications.Clear();
                 foreach (string app in _tempBlockedApps)
                 {
                     _configManager.Config.BlockedApplications.Add(app);
                 }
+                System.Diagnostics.Debug.WriteLine($"Saving {_tempBlockedApps.Count} blocked applications: {string.Join(", ", _tempBlockedApps)}");
+                Console.WriteLine($"Saving {_tempBlockedApps.Count} blocked applications: {string.Join(", ", _tempBlockedApps)}");
 
                 _configManager.Config.StartWithWindows = StartWithWindowsCheckBox.IsChecked ?? false;
 
@@ -337,6 +359,13 @@ namespace PictureDay.Views
                 if (FormatComboBox.SelectedItem is ComboBoxItem formatItem)
                 {
                     _configManager.Config.ImageFormat = formatItem.Tag?.ToString() ?? "JPEG";
+                }
+
+                if (ThemeComboBox.SelectedItem is ComboBoxItem themeItemSave)
+                {
+                    string? newTheme = themeItemSave.Tag?.ToString() ?? "Light";
+                    _configManager.Config.Theme = newTheme;
+                    ApplyTheme(newTheme);
                 }
 
                 if (AllMonitorsRadio.IsChecked == true)
@@ -409,8 +438,9 @@ namespace PictureDay.Views
 
                 SettingsSaved?.Invoke(this, EventArgs.Empty);
 
-                MessageBox.Show("Settings saved successfully.", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show("Settings saved successfully!", "Settings",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -422,6 +452,26 @@ namespace PictureDay.Views
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             LoadSettings();
+        }
+
+        private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isInitialized || _configManager == null) return;
+
+            if (ThemeComboBox.SelectedItem is ComboBoxItem themeItem)
+            {
+                string? theme = themeItem.Tag?.ToString() ?? "Light";
+                // Only apply theme visually, don't save yet - wait for Save button
+                ApplyTheme(theme);
+            }
+        }
+
+        private void ApplyTheme(string theme)
+        {
+            if (System.Windows.Application.Current is App app)
+            {
+                app.ApplyTheme(theme);
+            }
         }
     }
 }

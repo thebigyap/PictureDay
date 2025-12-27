@@ -37,7 +37,7 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 
 -   **Photo Gallery**: Browse screenshots organized by month and year
 -   **Thumbnail View**: Quick preview of all screenshots
--   **Full-Screen Viewer**: Click any thumbnail to view full-size image
+-   **Full-Screen Viewer**: Click any thumbnail to view full-size image with navigation arrows to browse through images
 
 ## Requirements
 
@@ -76,6 +76,7 @@ You can take screenshots manually using:
 2. Navigate to the "Photo Gallery" tab
 3. Use the month/year dropdowns or arrow buttons to browse
 4. Click any thumbnail to view the full-size image
+5. Use the left/right arrow buttons in the image viewer to navigate between images
 
 ### Configuration
 
@@ -203,6 +204,26 @@ PictureDay/
 ```
 
 ## Version History
+
+### v1.2.1
+
+-   Added image viewer navigation arrows (left/right) to browse through images in the gallery
+-   Navigation arrows automatically hide when there are no more images in that direction
+-   Improved image viewer user experience with intuitive navigation controls
+
+### v1.2.0
+
+-   Improved error handling and logging for configuration saving
+-   Enhanced theme application consistency across all UI elements
+-   Added success notification when settings are saved
+
+### v1.1.3
+
+-   Added Dark/Light theme support with comprehensive UI theming
+-   Improved gallery layout (3 images per row, better sizing)
+-   Enhanced UI design with auto-sizing buttons
+-   Made window non-resizable
+-   Improved dark theme styling for all controls
 
 ### v1.1.1
 

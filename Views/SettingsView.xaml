@@ -5,8 +5,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid Margin="20">
+    <Grid Margin="20" Background="{DynamicResource BackgroundBrush}">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -31,20 +32,31 @@
                 <ListBox x:Name="BlockedAppsListBox" Grid.Row="1" Height="150" Margin="0,0,0,10"/>
 
                 <StackPanel Grid.Row="2" Orientation="Horizontal">
-                    <TextBox x:Name="NewAppTextBox" Width="200" Height="25" Margin="0,0,5,0"
+                    <TextBox x:Name="NewAppTextBox" MinWidth="200" Margin="0,0,5,0"
                              VerticalContentAlignment="Center"/>
-                    <Button Content="Add Application" Width="120" Height="25" Margin="5,0,5,0"
+                    <Button Content="Add Application" Padding="8,4" Margin="5,0,5,0"
                             Click="AddAppButton_Click"/>
-                    <Button Content="Remove Selected" Width="120" Height="25" Margin="5,0,5,0"
+                    <Button Content="Remove Selected" Padding="8,4" Margin="5,0,5,0"
                             Click="RemoveAppButton_Click"/>
-                    <Button Content="Browse Running Processes" Width="180" Height="25" Margin="5,0,0,0"
+                    <Button Content="Browse Running Processes" Padding="8,4" Margin="5,0,0,0"
                             Click="BrowseProcessesButton_Click"/>
                 </StackPanel>
             </Grid>
         </GroupBox>
 
+        <!-- Theme Selection -->
+        <GroupBox Grid.Row="1" Header="Appearance" Margin="0,0,0,10">
+            <StackPanel Margin="10">
+                <TextBlock Text="Theme:" Margin="0,0,0,5"/>
+                <ComboBox x:Name="ThemeComboBox" SelectionChanged="ThemeComboBox_SelectionChanged">
+                    <ComboBoxItem Content="Light" Tag="Light"/>
+                    <ComboBoxItem Content="Dark" Tag="Dark"/>
+                </ComboBox>
+            </StackPanel>
+        </GroupBox>
+
         <!-- Screenshot Schedule -->
-        <GroupBox Grid.Row="1" Header="Screenshot Schedule" Margin="0,0,0,10">
+        <GroupBox Grid.Row="2" Header="Screenshot Schedule" Margin="0,0,0,10">
             <StackPanel Margin="10">
                 <TextBlock Text="Schedule Mode:" Margin="0,0,0,5"/>
                 <ComboBox x:Name="ScheduleModeComboBox" Margin="0,0,0,10" SelectionChanged="ScheduleModeComboBox_SelectionChanged">
@@ -71,7 +83,7 @@
         </GroupBox>
 
         <!-- Start with Windows -->
-        <GroupBox Grid.Row="2" Header="Startup Options" Margin="0,0,0,10">
+        <GroupBox Grid.Row="3" Header="Startup Options" Margin="0,0,0,10">
             <StackPanel Margin="10">
                 <CheckBox x:Name="StartWithWindowsCheckBox" Content="Start with Windows"
                           Margin="0,5"/>
@@ -79,7 +91,7 @@
         </GroupBox>
 
         <!-- Monitor Selection -->
-        <GroupBox Grid.Row="3" Header="Monitor Selection" Margin="0,0,0,10">
+        <GroupBox Grid.Row="4" Header="Monitor Selection" Margin="0,0,0,10">
             <StackPanel Margin="10">
                 <RadioButton x:Name="PrimaryMonitorRadio" Content="Primary Monitor"
                            Checked="MonitorSelection_Changed" Margin="0,5"/>
@@ -93,7 +105,7 @@
         </GroupBox>
 
         <!-- Screenshot Quality & Format -->
-        <GroupBox Grid.Row="4" Header="Screenshot Quality &amp; Format" Margin="0,0,0,10">
+        <GroupBox Grid.Row="5" Header="Screenshot Quality &amp; Format" Margin="0,0,0,10">
             <StackPanel Margin="10">
                 <TextBlock Text="Image Format:" Margin="0,0,0,5"/>
                 <ComboBox x:Name="FormatComboBox" Height="25" Margin="0,0,0,15" SelectionChanged="FormatComboBox_SelectionChanged">
@@ -117,7 +129,7 @@
         </GroupBox>
 
         <!-- Screenshot Directory -->
-        <GroupBox Grid.Row="5" Header="Screenshot Directory" Margin="0,0,0,10">
+        <GroupBox Grid.Row="6" Header="Screenshot Directory" Margin="0,0,0,10">
             <Grid Margin="10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -131,9 +143,9 @@
         </GroupBox>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Content="Save" Width="80" Height="30" Margin="5,0" Click="SaveButton_Click"/>
-            <Button Content="Cancel" Width="80" Height="30" Margin="5,0" Click="CancelButton_Click"/>
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Save" Padding="15,5" Margin="5,0" Click="SaveButton_Click"/>
+            <Button Content="Cancel" Padding="15,5" Margin="5,0" Click="CancelButton_Click"/>
         </StackPanel>
     </Grid>
 </UserControl>
