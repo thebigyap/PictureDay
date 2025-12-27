@@ -204,6 +204,11 @@ PictureDay/
 
 ## Version History
 
+### v1.1.1
+
+-   Fixed image viewer to display full-resolution images instead of blurry thumbnails
+-   Improved image viewer to fit images within preview container
+
 ### v1.1.0
 
 -   Manual screenshot trigger (button, system tray menu, keyboard shortcuts)

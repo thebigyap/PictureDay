@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -67,6 +68,7 @@ namespace PictureDay.Views
                         var item = new
                         {
                             ImageSource = LoadThumbnail(screenshot.FilePath),
+                            FilePath = screenshot.FilePath,
                             DateLabel = screenshot.DateTaken.ToString("MM/dd/yyyy HH:mm")
                         };
                         PhotosItemsControl.Items.Add(item);
@@ -93,23 +95,108 @@ namespace PictureDay.Views
 
         private void Image_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is System.Windows.Controls.Image image && image.Source is BitmapImage bitmapImage)
+            if (sender is System.Windows.Controls.Image image)
             {
+                var dataContext = image.DataContext;
+                if (dataContext == null) return;
+
+                string? filePath = null;
+                var filePathProperty = dataContext.GetType().GetProperty("FilePath");
+                if (filePathProperty != null)
+                {
+                    filePath = filePathProperty.GetValue(dataContext) as string;
+                }
+
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                {
+                    return;
+                }
+
                 Window imageWindow = new Window
                 {
-                    Title = "Screenshot",
-                    Width = 800,
-                    Height = 600,
+                    Title = $"Screenshot - {Path.GetFileName(filePath)}",
+                    Width = 1200,
+                    Height = 800,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner
                 };
 
+                BitmapImage fullResolutionImage = new BitmapImage();
+                fullResolutionImage.BeginInit();
+                fullResolutionImage.UriSource = new Uri(filePath);
+                fullResolutionImage.CacheOption = BitmapCacheOption.OnLoad;
+                fullResolutionImage.EndInit();
+                fullResolutionImage.Freeze();
+
                 System.Windows.Controls.Image fullImage = new System.Windows.Controls.Image
                 {
-                    Source = bitmapImage,
+                    Source = fullResolutionImage,
                     Stretch = System.Windows.Media.Stretch.Uniform
                 };
 
-                imageWindow.Content = fullImage;
+                Grid grid = new Grid();
+                grid.Children.Add(fullImage);
+
+                ScrollViewer scrollViewer = new ScrollViewer
+                {
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = grid
+                };
+
+                imageWindow.Content = scrollViewer;
+
+                imageWindow.Loaded += (s, e) =>
+                {
+                    if (fullResolutionImage.Width > 0 && fullResolutionImage.Height > 0)
+                    {
+                        double windowWidth = imageWindow.ActualWidth;
+                        double windowHeight = imageWindow.ActualHeight;
+                        double imageWidth = fullResolutionImage.Width;
+                        double imageHeight = fullResolutionImage.Height;
+
+                        double widthRatio = windowWidth / imageWidth;
+                        double heightRatio = windowHeight / imageHeight;
+                        double scale = Math.Min(widthRatio, heightRatio);
+
+                        if (scale < 1.0)
+                        {
+                            fullImage.Width = imageWidth * scale;
+                            fullImage.Height = imageHeight * scale;
+                        }
+                        else
+                        {
+                            fullImage.Width = imageWidth;
+                            fullImage.Height = imageHeight;
+                        }
+                    }
+                };
+
+                imageWindow.SizeChanged += (s, e) =>
+                {
+                    if (fullResolutionImage.Width > 0 && fullResolutionImage.Height > 0)
+                    {
+                        double windowWidth = imageWindow.ActualWidth;
+                        double windowHeight = imageWindow.ActualHeight;
+                        double imageWidth = fullResolutionImage.Width;
+                        double imageHeight = fullResolutionImage.Height;
+
+                        double widthRatio = windowWidth / imageWidth;
+                        double heightRatio = windowHeight / imageHeight;
+                        double scale = Math.Min(widthRatio, heightRatio);
+
+                        if (scale < 1.0)
+                        {
+                            fullImage.Width = imageWidth * scale;
+                            fullImage.Height = imageHeight * scale;
+                        }
+                        else
+                        {
+                            fullImage.Width = imageWidth;
+                            fullImage.Height = imageHeight;
+                        }
+                    }
+                };
+
                 imageWindow.Show();
             }
         }

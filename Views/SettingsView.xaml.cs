@@ -23,9 +23,12 @@ namespace PictureDay.Views
 
         public event EventHandler? SettingsSaved;
 
+        private bool _isInitialized = false;
+
         public SettingsView()
         {
             InitializeComponent();
+            _isInitialized = true;
         }
 
         public void Initialize(ConfigManager configManager)
@@ -150,20 +153,37 @@ namespace PictureDay.Views
 
         private void QualitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (!_isInitialized || QualityValueTextBlock == null)
+            {
+                return;
+            }
             QualityValueTextBlock.Text = ((int)e.NewValue).ToString();
         }
 
         private void FormatComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (!_isInitialized)
+            {
+                return;
+            }
             UpdateQualityUI();
         }
 
         private void UpdateQualityUI()
         {
+            if (QualitySlider == null || FormatComboBox == null)
+            {
+                return;
+            }
+
             if (FormatComboBox.SelectedItem is ComboBoxItem item)
             {
                 bool isJpeg = item.Tag?.ToString() == "JPEG";
                 QualitySlider.IsEnabled = isJpeg;
+            }
+            else
+            {
+                QualitySlider.IsEnabled = true;
             }
         }
 
