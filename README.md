@@ -279,7 +279,7 @@ PictureDay/
 
 ## License
 
-See LICENSE
+See [LICENSE](LICENSE)
 
 ## Contributing
 
