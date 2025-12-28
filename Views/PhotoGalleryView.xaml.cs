@@ -327,10 +327,63 @@ namespace PictureDay.Views
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
             };
 
+            double zoomLevel = 1.0;
+            double baseImageWidth = 0;
+            double baseImageHeight = 0;
+            double baseFitScale = 1.0;
+
             System.Windows.Controls.Image fullImage = new System.Windows.Controls.Image
             {
                 Stretch = System.Windows.Media.Stretch.Uniform
             };
+
+            System.Windows.Controls.Button exitButton = new System.Windows.Controls.Button
+            {
+                Content = "Exit",
+                Padding = new Thickness(10, 5, 10, 5),
+                Margin = new Thickness(10, 5, 0, 5),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top
+            };
+
+            System.Windows.Controls.TextBlock zoomLevelText = new System.Windows.Controls.TextBlock
+            {
+                Text = "100%",
+                FontSize = 14,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 5, 0)
+            };
+
+            System.Windows.Controls.Button zoomInButton = new System.Windows.Controls.Button
+            {
+                Content = "+",
+                FontSize = 16,
+                Width = 30,
+                Height = 30,
+                Padding = new Thickness(0),
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+
+            System.Windows.Controls.Button zoomOutButton = new System.Windows.Controls.Button
+            {
+                Content = "-",
+                FontSize = 16,
+                Width = 30,
+                Height = 30,
+                Padding = new Thickness(0),
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+
+            System.Windows.Controls.StackPanel zoomPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                Margin = new Thickness(0, 5, 10, 5)
+            };
+            zoomPanel.Children.Add(zoomOutButton);
+            zoomPanel.Children.Add(zoomLevelText);
+            zoomPanel.Children.Add(zoomInButton);
 
             System.Windows.Controls.Button leftArrow = new System.Windows.Controls.Button
             {
@@ -358,6 +411,21 @@ namespace PictureDay.Views
                 Visibility = currentIndex > 0 ? Visibility.Visible : Visibility.Hidden
             };
 
+            Action updateZoom = () =>
+            {
+                if (baseImageWidth > 0 && baseImageHeight > 0)
+                {
+                    double scaledWidth = baseImageWidth * baseFitScale * zoomLevel;
+                    double scaledHeight = baseImageHeight * baseFitScale * zoomLevel;
+                    fullImage.Width = scaledWidth;
+                    fullImage.Height = scaledHeight;
+                    zoomLevelText.Text = $"{(int)(zoomLevel * 100)}%";
+                }
+            };
+
+            Action? updateZoomWithCursor = null;
+            Action<double, System.Windows.Point?>? zoomToPoint = null;
+
             Action<int> loadImage = (index) =>
             {
                 if (index < 0 || index >= allScreenshots.Count) return;
@@ -375,33 +443,36 @@ namespace PictureDay.Views
                 fullImage.Source = fullResolutionImage;
                 imageWindow.Title = $"Screenshot - {Path.GetFileName(screenshot.FilePath)}";
 
-                // Update arrow visibility (reversed: left arrow goes forward, right arrow goes backward)
                 leftArrow.Visibility = index < allScreenshots.Count - 1 ? Visibility.Visible : Visibility.Hidden;
                 rightArrow.Visibility = index > 0 ? Visibility.Visible : Visibility.Hidden;
 
-                // Update image size
+                zoomLevel = 1.0;
+
+                // Calc image size and fit scale
                 if (fullResolutionImage.Width > 0 && fullResolutionImage.Height > 0)
                 {
+                    baseImageWidth = fullResolutionImage.Width;
+                    baseImageHeight = fullResolutionImage.Height;
+
                     double windowWidth = imageWindow.ActualWidth;
                     double windowHeight = imageWindow.ActualHeight;
-                    double imageWidth = fullResolutionImage.Width;
-                    double imageHeight = fullResolutionImage.Height;
 
-                    double widthRatio = windowWidth / imageWidth;
-                    double heightRatio = windowHeight / imageHeight;
-                    double scale = Math.Min(widthRatio, heightRatio);
+                    double widthRatio = windowWidth / baseImageWidth;
+                    double heightRatio = windowHeight / baseImageHeight;
+                    baseFitScale = Math.Min(widthRatio, heightRatio);
 
-                    if (scale < 1.0)
+                    if (baseFitScale > 1.0)
                     {
-                        fullImage.Width = imageWidth * scale;
-                        fullImage.Height = imageHeight * scale;
+                        baseFitScale = 1.0;
                     }
-                    else
-                    {
-                        fullImage.Width = imageWidth;
-                        fullImage.Height = imageHeight;
-                    }
+
+                    updateZoomWithCursor?.Invoke();
                 }
+            };
+
+            exitButton.Click += (s, args) =>
+            {
+                imageWindow.Close();
             };
 
             int currentImageIndex = currentIndex;
@@ -423,23 +494,209 @@ namespace PictureDay.Views
                 }
             };
 
-            Grid grid = new Grid();
-            grid.Children.Add(fullImage);
-            grid.Children.Add(leftArrow);
-            grid.Children.Add(rightArrow);
+            System.Windows.Controls.Grid topPanel = new System.Windows.Controls.Grid();
+            topPanel.Children.Add(exitButton);
+            topPanel.Children.Add(zoomPanel);
+
+            System.Windows.Controls.Grid imageGrid = new System.Windows.Controls.Grid();
+            imageGrid.Children.Add(fullImage);
+            imageGrid.Children.Add(leftArrow);
+            imageGrid.Children.Add(rightArrow);
 
             ScrollViewer scrollViewer = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Content = grid
+                Content = imageGrid
             };
 
-            imageWindow.Content = scrollViewer;
+            Action updateCursor = () =>
+            {
+                if (baseImageWidth > 0 && baseImageHeight > 0 && scrollViewer != null)
+                {
+                    double scaledWidth = baseImageWidth * baseFitScale * zoomLevel;
+                    double scaledHeight = baseImageHeight * baseFitScale * zoomLevel;
+                    bool canScroll = scaledWidth > scrollViewer.ViewportWidth || scaledHeight > scrollViewer.ViewportHeight;
+                    imageGrid.Cursor = canScroll ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow;
+                }
+            };
+
+            updateZoomWithCursor = () =>
+            {
+                updateZoom();
+                updateCursor();
+            };
+
+            zoomToPoint = (newZoomLevel, zoomPoint) =>
+            {
+                if (zoomPoint.HasValue && baseImageWidth > 0 && baseImageHeight > 0 && scrollViewer != null)
+                {
+                    double oldZoom = zoomLevel;
+                    double oldScaledWidth = baseImageWidth * baseFitScale * oldZoom;
+                    double oldScaledHeight = baseImageHeight * baseFitScale * oldZoom;
+
+                    double relativeX = (scrollViewer.HorizontalOffset + zoomPoint.Value.X) / oldScaledWidth;
+                    double relativeY = (scrollViewer.VerticalOffset + zoomPoint.Value.Y) / oldScaledHeight;
+
+                    zoomLevel = newZoomLevel;
+                    updateZoom();
+                    updateCursor();
+
+                    double newScaledWidth = baseImageWidth * baseFitScale * zoomLevel;
+                    double newScaledHeight = baseImageHeight * baseFitScale * zoomLevel;
+
+                    double newX = (relativeX * newScaledWidth) - zoomPoint.Value.X;
+                    double newY = (relativeY * newScaledHeight) - zoomPoint.Value.Y;
+
+                    scrollViewer.ScrollToHorizontalOffset(Math.Max(0, newX));
+                    scrollViewer.ScrollToVerticalOffset(Math.Max(0, newY));
+                }
+                else
+                {
+                    zoomLevel = newZoomLevel;
+                    updateZoomWithCursor();
+                }
+            };
+
+            zoomInButton.Click += (s, args) =>
+            {
+                if (scrollViewer != null && zoomToPoint != null)
+                {
+                    System.Windows.Point centerPoint = new System.Windows.Point(
+                        scrollViewer.ViewportWidth / 2,
+                        scrollViewer.ViewportHeight / 2);
+                    zoomToPoint(Math.Min(zoomLevel * 1.2, 10.0), centerPoint);
+                }
+                else
+                {
+                    zoomLevel = Math.Min(zoomLevel * 1.2, 10.0);
+                    updateZoomWithCursor?.Invoke();
+                }
+            };
+
+            zoomOutButton.Click += (s, args) =>
+            {
+                if (scrollViewer != null && zoomToPoint != null)
+                {
+                    System.Windows.Point centerPoint = new System.Windows.Point(
+                        scrollViewer.ViewportWidth / 2,
+                        scrollViewer.ViewportHeight / 2);
+                    zoomToPoint(Math.Max(zoomLevel / 1.2, 0.1), centerPoint);
+                }
+                else
+                {
+                    zoomLevel = Math.Max(zoomLevel / 1.2, 0.1);
+                    updateZoomWithCursor?.Invoke();
+                }
+            };
+
+            imageGrid.MouseWheel += (s, args) =>
+            {
+                if (zoomToPoint != null && scrollViewer != null)
+                {
+                    System.Windows.Point mousePos = args.GetPosition(scrollViewer);
+                    double newZoom;
+                    if (args.Delta > 0)
+                    {
+                        newZoom = Math.Min(zoomLevel * 1.1, 10.0);
+                    }
+                    else
+                    {
+                        newZoom = Math.Max(zoomLevel / 1.1, 0.1);
+                    }
+                    zoomToPoint(newZoom, mousePos);
+                }
+                else
+                {
+                    if (args.Delta > 0)
+                    {
+                        zoomLevel = Math.Min(zoomLevel * 1.1, 10.0);
+                    }
+                    else
+                    {
+                        zoomLevel = Math.Max(zoomLevel / 1.1, 0.1);
+                    }
+                    updateZoomWithCursor?.Invoke();
+                }
+                args.Handled = true;
+            };
+
+            bool isDragging = false;
+            System.Windows.Point lastMousePosition = new System.Windows.Point();
+
+            Func<bool> isImageScrollable = () =>
+            {
+                if (baseImageWidth > 0 && baseImageHeight > 0)
+                {
+                    double scaledWidth = baseImageWidth * baseFitScale * zoomLevel;
+                    double scaledHeight = baseImageHeight * baseFitScale * zoomLevel;
+                    return scaledWidth > scrollViewer.ViewportWidth || scaledHeight > scrollViewer.ViewportHeight;
+                }
+                return false;
+            };
+
+            imageGrid.MouseDown += (s, args) =>
+            {
+                if (args.LeftButton == System.Windows.Input.MouseButtonState.Pressed && isImageScrollable())
+                {
+                    isDragging = true;
+                    lastMousePosition = args.GetPosition(scrollViewer);
+                    imageGrid.CaptureMouse();
+                    args.Handled = true;
+                }
+            };
+
+            imageGrid.MouseMove += (s, args) =>
+            {
+                updateCursor();
+
+                if (isDragging && args.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+                {
+                    System.Windows.Point currentPosition = args.GetPosition(scrollViewer);
+                    double deltaX = lastMousePosition.X - currentPosition.X;
+                    double deltaY = lastMousePosition.Y - currentPosition.Y;
+
+                    scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset + deltaX);
+                    scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + deltaY);
+
+                    lastMousePosition = currentPosition;
+                    args.Handled = true;
+                }
+            };
+
+            imageGrid.MouseUp += (s, args) =>
+            {
+                if (isDragging)
+                {
+                    isDragging = false;
+                    imageGrid.ReleaseMouseCapture();
+                    args.Handled = true;
+                }
+            };
+
+            imageGrid.MouseLeave += (s, args) =>
+            {
+                if (isDragging)
+                {
+                    isDragging = false;
+                    imageGrid.ReleaseMouseCapture();
+                }
+            };
+
+            System.Windows.Controls.Grid mainGrid = new System.Windows.Controls.Grid();
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+
+            System.Windows.Controls.Grid.SetRow(topPanel, 0);
+            System.Windows.Controls.Grid.SetRow(scrollViewer, 1);
+
+            mainGrid.Children.Add(topPanel);
+            mainGrid.Children.Add(scrollViewer);
+
+            imageWindow.Content = mainGrid;
             imageWindow.Owner = System.Windows.Application.Current.MainWindow;
             imageWindow.ShowActivated = true;
 
-            // Load initial image
             loadImage(currentIndex);
 
             imageWindow.Loaded += (s, e) =>
@@ -453,24 +710,22 @@ namespace PictureDay.Views
                 if (fullImage.Source is BitmapImage currentImage && currentImage.Width > 0 && currentImage.Height > 0)
                 {
                     double windowWidth = imageWindow.ActualWidth;
-                    double windowHeight = imageWindow.ActualHeight;
+                    double windowHeight = imageWindow.ActualHeight - topPanel.ActualHeight;
                     double imageWidth = currentImage.Width;
                     double imageHeight = currentImage.Height;
 
                     double widthRatio = windowWidth / imageWidth;
                     double heightRatio = windowHeight / imageHeight;
-                    double scale = Math.Min(widthRatio, heightRatio);
+                    baseFitScale = Math.Min(widthRatio, heightRatio);
 
-                    if (scale < 1.0)
+                    if (baseFitScale > 1.0)
                     {
-                        fullImage.Width = imageWidth * scale;
-                        fullImage.Height = imageHeight * scale;
+                        baseFitScale = 1.0;
                     }
-                    else
-                    {
-                        fullImage.Width = imageWidth;
-                        fullImage.Height = imageHeight;
-                    }
+
+                    baseImageWidth = imageWidth;
+                    baseImageHeight = imageHeight;
+                    updateZoomWithCursor();
                 }
             };
 

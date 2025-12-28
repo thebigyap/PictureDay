@@ -38,6 +38,9 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 -   **Photo Gallery**: Browse screenshots organized by month and year
 -   **Thumbnail View**: Quick preview of all screenshots
 -   **Full-Screen Viewer**: Click any thumbnail to view full-size image with navigation arrows to browse through images
+-   **Zoom Controls**: Zoom in/out with mouse wheel or +/- buttons, with zoom level display (10% to 1000%)
+-   **Pan & Drag**: Click and drag to pan around zoomed images with intuitive hand cursor
+-   **Smart Zooming**: Zoom centers on cursor position for precise navigation
 -   **Context Menu**: Right-click any image for quick actions (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
 
 ## Requirements
@@ -78,7 +81,10 @@ You can take screenshots manually using:
 3. Use the month/year dropdowns or arrow buttons to browse
 4. Click any thumbnail to view the full-size image
 5. Use the left/right arrow buttons in the image viewer to navigate between images
-6. Right-click any image for context menu options (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
+6. **Zoom Controls**: Use mouse wheel to zoom in/out (zooms toward cursor position), or use the +/- buttons with zoom level display
+7. **Pan & Drag**: When zoomed in, click and drag to pan around the image (cursor changes to hand when panning is available)
+8. Right-click any image for context menu options (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
+9. Click "Exit" button to close the image viewer
 
 ### Configuration
 
@@ -206,6 +212,16 @@ PictureDay/
 ```
 
 ## Version History
+
+### v1.4.0
+
+-   Enhanced image viewer with advanced zoom and pan capabilities
+-   Added zoom controls with +/- buttons and real-time zoom level display (10% to 1000%)
+-   Implemented mouse wheel zoom that smoothly zooms toward cursor position
+-   Added click-and-drag panning for zoomed images with hand cursor indicator
+-   Smart zooming that keeps the point under cursor fixed during zoom operations
+-   Added exit button to image viewer for quick window closure
+-   Improved image navigation experience with intuitive zoom and pan controls
 
 ### v1.3.0
 
