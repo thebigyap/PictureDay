@@ -34,7 +34,19 @@
                                 <Viewbox Width="250" Height="100" Stretch="Uniform">
                                     <Image Source="{Binding ImageSource}"
                                            MouseLeftButtonDown="Image_MouseLeftButtonDown"
-                                           Cursor="Hand"/>
+                                           MouseRightButtonDown="Image_MouseRightButtonDown"
+                                           Cursor="Hand">
+                                        <Image.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Open" Click="ContextMenu_Open_Click"/>
+                                                <MenuItem Header="Open in File Explorer" Click="ContextMenu_OpenInExplorer_Click"/>
+                                                <MenuItem Header="Copy Image" Click="ContextMenu_CopyImage_Click"/>
+                                                <MenuItem Header="Copy File Location" Click="ContextMenu_CopyPath_Click"/>
+                                                <Separator/>
+                                                <MenuItem Header="Delete" Click="ContextMenu_Delete_Click"/>
+                                            </ContextMenu>
+                                        </Image.ContextMenu>
+                                    </Image>
                                 </Viewbox>
                                 <TextBlock Text="{Binding DateLabel}"
                                            HorizontalAlignment="Center"

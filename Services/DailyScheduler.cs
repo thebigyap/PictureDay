@@ -139,12 +139,17 @@ namespace PictureDay.Services
 
         private TimeSpan DetermineScheduledTime()
         {
+            DateTime now = DateTime.Now;
+            TimeSpan currentTime = now.TimeOfDay;
+
             switch (_configManager.Config.ScheduleMode)
             {
                 case ScheduleMode.FixedTime:
                     if (_configManager.Config.FixedScheduledTime.HasValue)
                     {
-                        return _configManager.Config.FixedScheduledTime.Value;
+                        TimeSpan fixedTime = _configManager.Config.FixedScheduledTime.Value;
+                        // If fixed time is in the past, it will be scheduled for tomorrow
+                        return fixedTime;
                     }
                     break;
 
@@ -154,22 +159,40 @@ namespace PictureDay.Services
                     {
                         return PickRandomTimeInRange(
                             _configManager.Config.ScheduleRangeStart.Value,
-                            _configManager.Config.ScheduleRangeEnd.Value);
+                            _configManager.Config.ScheduleRangeEnd.Value,
+                            currentTime);
                     }
                     break;
 
                 case ScheduleMode.Random:
                 default:
-                    return PickRandomTime();
+                    return PickRandomTime(currentTime);
             }
 
-            return PickRandomTime();
+            return PickRandomTime(currentTime);
         }
 
-        private TimeSpan PickRandomTimeInRange(TimeSpan start, TimeSpan end)
+        private TimeSpan PickRandomTimeInRange(TimeSpan start, TimeSpan end, TimeSpan currentTime)
         {
             Random random = new Random();
-            int startMinutes = (int)start.TotalMinutes;
+
+            // Ensure we don't schedule in the past
+            TimeSpan effectiveStart = start;
+            if (currentTime > start)
+            {
+                // Current time is after the start of the range, use current time + 1 minute as minimum
+                effectiveStart = currentTime.Add(TimeSpan.FromMinutes(1));
+            }
+
+            // If effective start is after end, we're past the window for today
+            // In this case, we'll still return a time, but it won't trigger until the next day
+            if (effectiveStart >= end)
+            {
+                // Return the start time (will be scheduled for tomorrow)
+                return start;
+            }
+
+            int startMinutes = (int)effectiveStart.TotalMinutes;
             int endMinutes = (int)end.TotalMinutes;
             int randomMinutes = random.Next(startMinutes, endMinutes);
             return TimeSpan.FromMinutes(randomMinutes);
@@ -256,16 +279,35 @@ namespace PictureDay.Services
             InitializeDay();
         }
 
-        private TimeSpan PickRandomTime()
+        private TimeSpan PickRandomTime(TimeSpan currentTime)
         {
             Random random = new Random();
             int startHour = 9;
             int endHour = 21;
 
-            int hour = random.Next(startHour, endHour);
-            int minute = random.Next(0, 60);
+            // Default 9am-9pm range
+            TimeSpan defaultStart = new TimeSpan(startHour, 0, 0);
+            TimeSpan defaultEnd = new TimeSpan(endHour, 0, 0);
 
-            return new TimeSpan(hour, minute, 0);
+            // If current time is after 9am, use current time + 1 minute as minimum
+            TimeSpan effectiveStart = defaultStart;
+            if (currentTime > defaultStart)
+            {
+                effectiveStart = currentTime.Add(TimeSpan.FromMinutes(1));
+            }
+
+            // If we're past 9pm, we'll schedule for tomorrow (return default start)
+            if (effectiveStart >= defaultEnd)
+            {
+                return defaultStart;
+            }
+
+            // Calculate random time between effective start and end
+            int startMinutes = (int)effectiveStart.TotalMinutes;
+            int endMinutes = (int)defaultEnd.TotalMinutes;
+            int randomMinutes = random.Next(startMinutes, endMinutes);
+
+            return TimeSpan.FromMinutes(randomMinutes);
         }
 
         private bool IsInScheduledWindow(DateTime now)

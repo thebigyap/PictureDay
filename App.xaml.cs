@@ -9,7 +9,7 @@ namespace PictureDay
 {
     public partial class App : Application
     {
-        public const string Version = "1.2.1";
+        public const string Version = "1.3.0";
 
         private NotifyIcon? _notifyIcon;
         private ConfigManager? _configManager;

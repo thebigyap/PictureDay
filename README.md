@@ -23,9 +23,9 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 
 ### Scheduling Options
 
--   **Random Time**: Automatically picks a random time between 9 AM and 9 PM (default)
+-   **Random Time**: Automatically picks a random time between 9 AM and 9 PM (default), with smart selection that ensures times are always in the future
 -   **Fixed Time**: Set a specific time for daily screenshots
--   **Time Range**: Random time within a custom range
+-   **Time Range**: Random time within a custom range, with smart selection that respects current time
 
 ### Screenshot Settings
 
@@ -38,6 +38,7 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 -   **Photo Gallery**: Browse screenshots organized by month and year
 -   **Thumbnail View**: Quick preview of all screenshots
 -   **Full-Screen Viewer**: Click any thumbnail to view full-size image with navigation arrows to browse through images
+-   **Context Menu**: Right-click any image for quick actions (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
 
 ## Requirements
 
@@ -77,6 +78,7 @@ You can take screenshots manually using:
 3. Use the month/year dropdowns or arrow buttons to browse
 4. Click any thumbnail to view the full-size image
 5. Use the left/right arrow buttons in the image viewer to navigate between images
+6. Right-click any image for context menu options (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
 
 ### Configuration
 
@@ -204,6 +206,20 @@ PictureDay/
 ```
 
 ## Version History
+
+### v1.3.0
+
+-   Added context menu to photo gallery images with right-click functionality
+-   Context menu options: Open, Open in File Explorer, Copy Image, Copy File Location, Delete
+-   All context menu actions are fully functional
+-   Added scrolling support to settings view for better accessibility
+
+### v1.2.2
+
+-   Implemented smart time selection for screenshot scheduling
+-   Random time selection now respects current time (won't schedule times in the past)
+-   If app starts at 3 PM, screenshots will only be scheduled between 3:01 PM and 9:00 PM
+-   Improved scheduling logic for both Random and TimeRange modes
 
 ### v1.2.1
 
