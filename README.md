@@ -23,7 +23,8 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 
 ### Scheduling Options
 
--   **Random Time**: Automatically picks a random time between 9 AM and 9 PM (default), with smart selection that ensures times are always in the future
+-   **Random Time**: Automatically picks a random time between 9 AM and 3 AM (next day), with smart selection that ensures times are always in the future
+-   **Intelligent Backup System**: For late-night times (9 PM - 3 AM), automatically schedules a backup screenshot during daytime hours (9 AM - 9 PM) to ensure you never miss a day
 -   **Fixed Time**: Set a specific time for daily screenshots
 -   **Time Range**: Random time within a custom range, with smart selection that respects current time
 
@@ -38,7 +39,7 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 -   **Photo Gallery**: Browse screenshots organized by month and year
 -   **Thumbnail View**: Quick preview of all screenshots
 -   **Full-Screen Viewer**: Click any thumbnail to view full-size image with navigation arrows to browse through images
--   **Zoom Controls**: Zoom in/out with mouse wheel or +/- buttons, with zoom level display (10% to 1000%)
+-   **Zoom Controls**: Zoom in/out with mouse wheel or +/- buttons, with zoom level display (10% to 1000%) and reset button
 -   **Pan & Drag**: Click and drag to pan around zoomed images with intuitive hand cursor
 -   **Smart Zooming**: Zoom centers on cursor position for precise navigation
 -   **Context Menu**: Right-click any image for quick actions (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
@@ -81,7 +82,7 @@ You can take screenshots manually using:
 3. Use the month/year dropdowns or arrow buttons to browse
 4. Click any thumbnail to view the full-size image
 5. Use the left/right arrow buttons in the image viewer to navigate between images
-6. **Zoom Controls**: Use mouse wheel to zoom in/out (zooms toward cursor position), or use the +/- buttons with zoom level display
+6. **Zoom Controls**: Use mouse wheel to zoom in/out (zooms toward cursor position), or use the +/- buttons with zoom level display. Click "Reset" to return to 100% zoom
 7. **Pan & Drag**: When zoomed in, click and drag to pan around the image (cursor changes to hand when panning is available)
 8. Right-click any image for context menu options (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
 9. Click "Exit" button to close the image viewer
@@ -104,6 +105,8 @@ Access settings via:
 
 -   Choose scheduling mode (Random, Fixed Time, or Time Range)
 -   Configure time settings based on selected mode
+-   View today's scheduled screenshot time (displays in 12-hour format)
+-   See notification if scheduled time has already passed
 
 **Monitor Selection**
 
@@ -212,6 +215,30 @@ PictureDay/
 ```
 
 ## Version History
+
+### v1.7.0
+
+-   Extended random time range from 9 AM - 9 PM to 9 AM - 3 AM (next day) for late-night users
+-   Added intelligent backup screenshot system for late-night scheduled times
+-   If a late-night time (9 PM - 3 AM) is selected, automatically schedules a backup screenshot between 9 AM - 9 PM
+-   If user is online during late-night time, main screenshot is taken and backup is deleted
+-   If user is not online during late-night time, backup screenshot is automatically promoted to main
+-   Improved screenshot capture reliability for gamers and night owls
+
+### v1.6.0
+
+-   Image viewer now uses dark background in dark mode (was white)
+-   Zoom level text now uses theme colors for proper visibility
+-   Added reset button to zoom controls for quick return to 100% zoom
+-   Improved dark theme consistency across all UI elements
+
+### v1.5.0
+
+-   Added scheduled time display in settings page
+-   Shows today's scheduled screenshot time in 12-hour format (e.g., "2:30 PM")
+-   Displays notification if scheduled time has already passed (will schedule for tomorrow)
+-   Updates automatically when schedule settings are changed
+-   Improves user awareness of when screenshots will be captured
 
 ### v1.4.0
 

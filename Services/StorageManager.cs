@@ -104,6 +104,43 @@ namespace PictureDay.Services
             }
         }
 
+        public string? PromoteBackupToMain(string backupPath)
+        {
+            try
+            {
+                if (!File.Exists(backupPath))
+                {
+                    return null;
+                }
+
+                string fileName = Path.GetFileName(backupPath);
+                if (!fileName.StartsWith("backup_", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
+                string newFileName = fileName.Substring(7); // Remove "backup_" prefix
+                string directory = Path.GetDirectoryName(backupPath) ?? _baseDirectory;
+                string newPath = Path.Combine(directory, newFileName);
+
+                if (File.Exists(newPath))
+                {
+                    // If main file already exists, just delete the backup
+                    File.Delete(backupPath);
+                    return newPath;
+                }
+
+                File.Move(backupPath, newPath);
+                System.Diagnostics.Debug.WriteLine($"Promoted backup screenshot to main: {newFileName}");
+                return newPath;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error promoting backup to main: {ex.Message}");
+                return null;
+            }
+        }
+
         public List<ScreenshotMetadata> GetScreenshotsByDateRange(DateTime startDate, DateTime endDate)
         {
             List<ScreenshotMetadata> screenshots = new List<ScreenshotMetadata>();

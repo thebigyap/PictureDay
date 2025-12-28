@@ -28,7 +28,8 @@
                                         Content="{TemplateBinding Content}"
                                         ContentTemplate="{TemplateBinding ContentTemplate}"
                                         RecognizesAccessKey="True"
-                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
+                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
+                                        TextBlock.Foreground="{TemplateBinding Foreground}">
                             <ContentPresenter.Resources>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
@@ -44,16 +45,19 @@
                         <Trigger Property="IsPressed" Value="True">
                             <Setter Property="Foreground" Value="#000000"/>
                             <Setter TargetName="border" Property="Background" Value="#E0E0E0"/>
+                            <Setter TargetName="contentPresenter" Property="TextBlock.Foreground" Value="#000000"/>
                         </Trigger>
                         <Trigger Property="IsFocused" Value="True">
                             <Setter Property="Foreground" Value="#000000"/>
                             <Setter TargetName="border" Property="Background" Value="#E0E0E0"/>
                             <Setter TargetName="border" Property="BorderBrush" Value="#5F5F5F"/>
+                            <Setter TargetName="contentPresenter" Property="TextBlock.Foreground" Value="#000000"/>
                         </Trigger>
                         <Trigger Property="IsDefaulted" Value="True">
                             <Setter Property="Foreground" Value="#000000"/>
                             <Setter TargetName="border" Property="Background" Value="#E0E0E0"/>
                             <Setter TargetName="border" Property="BorderBrush" Value="#5F5F5F"/>
+                            <Setter TargetName="contentPresenter" Property="TextBlock.Foreground" Value="#000000"/>
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
@@ -63,6 +67,7 @@
                             <Setter Property="Foreground" Value="#000000"/>
                             <Setter TargetName="border" Property="Background" Value="#E0E0E0"/>
                             <Setter TargetName="border" Property="BorderBrush" Value="#5F5F5F"/>
+                            <Setter TargetName="contentPresenter" Property="TextBlock.Foreground" Value="#000000"/>
                         </MultiTrigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="#808080"/>
@@ -97,13 +102,21 @@
                 <Setter Property="Foreground" Value="#FFFFFF"/>
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="#4D4D4D"/>
+                <Setter Property="Background" Value="#5A5A5A"/>
                 <Setter Property="Foreground" Value="#FFFFFF"/>
             </Trigger>
             <Trigger Property="IsHighlighted" Value="True">
                 <Setter Property="Background" Value="#3D3D3D"/>
                 <Setter Property="Foreground" Value="#FFFFFF"/>
             </Trigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="IsSelected" Value="True"/>
+                    <Condition Property="IsHighlighted" Value="True"/>
+                </MultiTrigger.Conditions>
+                <Setter Property="Background" Value="#5A5A5A"/>
+                <Setter Property="Foreground" Value="#FFFFFF"/>
+            </MultiTrigger>
         </Style.Triggers>
     </Style>
 

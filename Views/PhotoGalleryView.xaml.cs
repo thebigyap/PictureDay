@@ -324,7 +324,8 @@ namespace PictureDay.Views
                 Title = $"Screenshot - {Path.GetFileName(filePath)}",
                 Width = 1200,
                 Height = 800,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
             };
 
             double zoomLevel = 1.0;
@@ -351,7 +352,8 @@ namespace PictureDay.Views
                 Text = "100%",
                 FontSize = 14,
                 VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                Margin = new Thickness(5, 0, 5, 0)
+                Margin = new Thickness(5, 0, 5, 0),
+                Foreground = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("TextBrush") ?? System.Windows.Media.Brushes.Black
             };
 
             System.Windows.Controls.Button zoomInButton = new System.Windows.Controls.Button
@@ -374,6 +376,14 @@ namespace PictureDay.Views
                 Margin = new Thickness(5, 0, 0, 0)
             };
 
+            System.Windows.Controls.Button zoomResetButton = new System.Windows.Controls.Button
+            {
+                Content = "Reset",
+                FontSize = 12,
+                Padding = new Thickness(8, 4, 8, 4),
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+
             System.Windows.Controls.StackPanel zoomPanel = new System.Windows.Controls.StackPanel
             {
                 Orientation = System.Windows.Controls.Orientation.Horizontal,
@@ -384,6 +394,7 @@ namespace PictureDay.Views
             zoomPanel.Children.Add(zoomOutButton);
             zoomPanel.Children.Add(zoomLevelText);
             zoomPanel.Children.Add(zoomInButton);
+            zoomPanel.Children.Add(zoomResetButton);
 
             System.Windows.Controls.Button leftArrow = new System.Windows.Controls.Button
             {
@@ -494,7 +505,10 @@ namespace PictureDay.Views
                 }
             };
 
-            System.Windows.Controls.Grid topPanel = new System.Windows.Controls.Grid();
+            System.Windows.Controls.Grid topPanel = new System.Windows.Controls.Grid
+            {
+                Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
+            };
             topPanel.Children.Add(exitButton);
             topPanel.Children.Add(zoomPanel);
 
@@ -507,7 +521,8 @@ namespace PictureDay.Views
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Content = imageGrid
+                Content = imageGrid,
+                Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
             };
 
             Action updateCursor = () =>
@@ -586,6 +601,22 @@ namespace PictureDay.Views
                 else
                 {
                     zoomLevel = Math.Max(zoomLevel / 1.2, 0.1);
+                    updateZoomWithCursor?.Invoke();
+                }
+            };
+
+            zoomResetButton.Click += (s, args) =>
+            {
+                if (scrollViewer != null && zoomToPoint != null)
+                {
+                    System.Windows.Point centerPoint = new System.Windows.Point(
+                        scrollViewer.ViewportWidth / 2,
+                        scrollViewer.ViewportHeight / 2);
+                    zoomToPoint(1.0, centerPoint);
+                }
+                else
+                {
+                    zoomLevel = 1.0;
                     updateZoomWithCursor?.Invoke();
                 }
             };
@@ -683,7 +714,10 @@ namespace PictureDay.Views
                 }
             };
 
-            System.Windows.Controls.Grid mainGrid = new System.Windows.Controls.Grid();
+            System.Windows.Controls.Grid mainGrid = new System.Windows.Controls.Grid
+            {
+                Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
+            };
             mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
             mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
 

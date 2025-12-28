@@ -91,6 +91,7 @@ namespace PictureDay.Views
             }
 
             LoadMonitorSettings();
+            UpdateScheduledTimeDisplay();
         }
 
         private void LoadMonitorSettings()
@@ -159,6 +160,55 @@ namespace PictureDay.Views
                 FixedTimePanel.Visibility = mode == "FixedTime" ? Visibility.Visible : Visibility.Collapsed;
                 TimeRangePanel.Visibility = mode == "TimeRange" ? Visibility.Visible : Visibility.Collapsed;
             }
+            UpdateScheduledTimeDisplay();
+        }
+
+        private void UpdateScheduledTimeDisplay()
+        {
+            if (_configManager == null || ScheduledTimeTextBlock == null)
+            {
+                return;
+            }
+
+            if (_configManager.Config.TodayScheduledTime.HasValue)
+            {
+                TimeSpan scheduledTime = _configManager.Config.TodayScheduledTime.Value;
+                DateTime now = DateTime.Now;
+                TimeSpan currentTime = now.TimeOfDay;
+
+                string timeString = FormatTimeSpan(scheduledTime);
+
+                if (scheduledTime < currentTime)
+                {
+                    ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString} (already passed - will schedule for tomorrow)";
+                }
+                else
+                {
+                    ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString}";
+                }
+            }
+            else
+            {
+                ScheduledTimeTextBlock.Text = "Today's scheduled time: Not set";
+            }
+        }
+
+        private string FormatTimeSpan(TimeSpan timeSpan)
+        {
+            int hours = timeSpan.Hours;
+            int minutes = timeSpan.Minutes;
+            string period = hours >= 12 ? "PM" : "AM";
+
+            if (hours == 0)
+            {
+                hours = 12;
+            }
+            else if (hours > 12)
+            {
+                hours -= 12;
+            }
+
+            return $"{hours}:{minutes:D2} {period}";
         }
 
         private void QualitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -435,6 +485,8 @@ namespace PictureDay.Views
                 {
                     _storageManager.UpdateSettings(_configManager.Config.Quality, _configManager.Config.ImageFormat);
                 }
+
+                UpdateScheduledTimeDisplay();
 
                 SettingsSaved?.Invoke(this, EventArgs.Empty);
 

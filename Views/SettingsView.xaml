@@ -61,10 +61,12 @@
             <StackPanel Margin="10">
                 <TextBlock Text="Schedule Mode:" Margin="0,0,0,5"/>
                 <ComboBox x:Name="ScheduleModeComboBox" Margin="0,0,0,10" SelectionChanged="ScheduleModeComboBox_SelectionChanged">
-                    <ComboBoxItem Content="Random Time (9 AM - 9 PM)" Tag="Random"/>
+                    <ComboBoxItem Content="Random Time (9 AM - 3 AM)" Tag="Random"/>
                     <ComboBoxItem Content="Fixed Time" Tag="FixedTime"/>
                     <ComboBoxItem Content="Time Range" Tag="TimeRange"/>
                 </ComboBox>
+                <TextBlock x:Name="ScheduledTimeTextBlock" Text="Today's scheduled time: Not set"
+                           Margin="0,0,0,10" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
 
                 <StackPanel x:Name="FixedTimePanel" Margin="0,0,0,10" Visibility="Collapsed">
                     <TextBlock Text="Scheduled Time (HH:mm):" Margin="0,0,0,5"/>
