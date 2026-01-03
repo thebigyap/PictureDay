@@ -9,7 +9,7 @@ namespace PictureDay
 {
     public partial class App : Application
     {
-        public const string Version = "1.7.0";
+        public const string Version = "1.8.0";
 
         private NotifyIcon? _notifyIcon;
         private ConfigManager? _configManager;
@@ -21,35 +21,54 @@ namespace PictureDay
         [DllImport("kernel32.dll")]
         private static extern bool AllocConsole();
 
+        private void DebugWriteLine(string message)
+        {
+        #if DEBUG
+            Console.WriteLine(message);
+        #endif
+        }
+
+        private void InitializeDebugConsole()
+        {
+        #if DEBUG
+            try
+            {
+                AllocConsole();
+                DebugWriteLine("Debug console allocated.");
+            }
+            catch
+            {
+            }
+        #endif
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
             try
             {
-                AllocateConsole();
-
-                Console.WriteLine("PictureDay starting...");
-                Console.WriteLine("Initializing ConfigManager...");
+                InitializeDebugConsole();
+                DebugWriteLine("PictureDay starting...");
+                DebugWriteLine("Initializing ConfigManager...");
                 _configManager = new ConfigManager();
 
                 string theme = _configManager.Config.Theme ?? "Light";
                 ApplyTheme(theme);
-                Console.WriteLine($"Config loaded. Screenshot directory: {_configManager.Config.ScreenshotDirectory}");
-
-                Console.WriteLine("Initializing StorageManager...");
+                DebugWriteLine($"Config loaded. Screenshot directory: {_configManager.Config.ScreenshotDirectory}");
+                DebugWriteLine("Initializing StorageManager...");
                 _storageManager = new StorageManager(
                     _configManager.Config.ScreenshotDirectory,
                     _configManager.Config.Quality,
                     _configManager.Config.ImageFormat);
 
-                Console.WriteLine("Initializing ActivityMonitor...");
+                DebugWriteLine("Initializing ActivityMonitor...");
                 var activityMonitor = new ActivityMonitor();
-                Console.WriteLine("Initializing PrivacyFilter...");
+                DebugWriteLine("Initializing PrivacyFilter...");
                 _privacyFilter = new PrivacyFilter(_configManager);
-                Console.WriteLine("Initializing ScreenshotService...");
+                DebugWriteLine("Initializing ScreenshotService...");
                 _screenshotService = new ScreenshotService(_storageManager, _configManager);
-                Console.WriteLine("Initializing DailyScheduler...");
+                DebugWriteLine("Initializing DailyScheduler...");
                 _dailyScheduler = new DailyScheduler(
                     _configManager,
                     activityMonitor,
@@ -57,10 +76,10 @@ namespace PictureDay
                     _screenshotService,
                     _storageManager);
                 _dailyScheduler.Start();
-                Console.WriteLine("DailyScheduler started.");
-                Console.WriteLine("Setting up system tray...");
+                DebugWriteLine("DailyScheduler started.");
+                DebugWriteLine("Setting up system tray...");
                 SetupSystemTray();
-                Console.WriteLine("System tray setup complete.");
+                DebugWriteLine("System tray setup complete.");
                 if (MainWindow != null)
                 {
                     MainWindow.WindowState = WindowState.Minimized;
@@ -70,27 +89,15 @@ namespace PictureDay
                 Resources["StorageManager"] = _storageManager;
                 Resources["DailyScheduler"] = _dailyScheduler;
                 Resources["ScreenshotService"] = _screenshotService;
-                Console.WriteLine("PictureDay started successfully!");
-                Console.WriteLine("Press any key to close this console (app will continue running)...");
+                DebugWriteLine("PictureDay started successfully!");
+                DebugWriteLine("Press any key to close this console (app will continue running)...");
             }
             catch (Exception ex)
             {
                 string errorMsg = $"Fatal error during startup: {ex.Message}\n\nStack trace:\n{ex.StackTrace}";
-                Console.WriteLine(errorMsg);
+                DebugWriteLine(errorMsg);
                 System.Windows.MessageBox.Show(errorMsg, "PictureDay Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
-            }
-        }
-
-        private void AllocateConsole()
-        {
-            try
-            {
-                AllocConsole();
-                Console.WriteLine("Debug console allocated.");
-            }
-            catch
-            {
             }
         }
 
@@ -119,14 +126,14 @@ namespace PictureDay
             };
 
             ContextMenuStrip contextMenu = new ContextMenuStrip();
-            contextMenu.Items.Add("Take Screenshot Now", null, (s, e) => TakeManualScreenshot());
-            contextMenu.Items.Add("-");
             contextMenu.Items.Add("Show PictureDay", null, (s, e) =>
             {
                 MainWindow.Show();
                 MainWindow.WindowState = WindowState.Normal;
                 MainWindow.Activate();
             });
+            contextMenu.Items.Add("-");
+            contextMenu.Items.Add("Take Screenshot Now", null, (s, e) => TakeManualScreenshot());
             contextMenu.Items.Add("Settings", null, (s, e) =>
             {
                 MainWindow.Show();

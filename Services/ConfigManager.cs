@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Win32;
@@ -127,11 +128,18 @@ namespace PictureDay.Services
                     return;
                 }
 
-                string appPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string? appPath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
                 if (string.IsNullOrEmpty(appPath))
                 {
-                    System.Diagnostics.Debug.WriteLine("Could not get assembly location");
+                    System.Diagnostics.Debug.WriteLine("Could not get executable path");
                     return;
+                }
+
+                if (!appPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    string directory = Path.GetDirectoryName(appPath) ?? "";
+                    string exeName = Path.GetFileNameWithoutExtension(appPath) + ".exe";
+                    appPath = Path.Combine(directory, exeName);
                 }
 
                 if (_config.StartWithWindows)

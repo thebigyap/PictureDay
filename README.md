@@ -216,6 +216,14 @@ PictureDay/
 
 ## Version History
 
+### v1.8.0
+
+-   Fixed Windows startup registry to use .exe file instead of .dll
+-   Console window now only appears in debug builds (not in release builds)
+-   Refactored debug console code for better maintainability and cleaner codebase
+-   Reordered system tray context menu with "Show PictureDay" as the topmost item
+-   Improved user experience for production releases
+
 ### v1.7.0
 
 -   Extended random time range from 9 AM - 9 PM to 9 AM - 3 AM (next day) for late-night users
