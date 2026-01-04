@@ -22,6 +22,23 @@ namespace PictureDay.Utils
         [DllImport("user32.dll")]
         public static extern bool IsWindowVisible(IntPtr hWnd);
 
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsZoomed(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        public const int SW_MINIMIZE = 6;
+        public const int SW_RESTORE = 9;
+        public const int GWL_STYLE = -16;
+        public const int WS_MINIMIZE = 0x20000000;
+
         public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
         [StructLayout(LayoutKind.Sequential)]
@@ -66,6 +83,21 @@ namespace PictureDay.Utils
                 }
             }
             return null;
+        }
+
+        public static bool IsMinimized(IntPtr hWnd)
+        {
+            return IsIconic(hWnd);
+        }
+
+        public static void MinimizeWindow(IntPtr hWnd)
+        {
+            ShowWindow(hWnd, SW_MINIMIZE);
+        }
+
+        public static void RestoreWindow(IntPtr hWnd)
+        {
+            ShowWindow(hWnd, SW_RESTORE);
         }
     }
 }

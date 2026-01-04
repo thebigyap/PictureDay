@@ -36,6 +36,7 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 
 -   **Image Format**: Choose between JPEG or PNG
 -   **Quality Control**: Adjustable JPEG quality (10-100)
+-   **Desktop Only Mode**: When enabled, automatically minimizes all windows before capturing, showing only the desktop background
 -   **Multi-Monitor Support**: Capture primary monitor, all monitors, or a specific monitor
 
 ### Gallery & Management
@@ -236,6 +237,14 @@ PictureDay/
 ```
 
 ## Version History
+
+### v1.9.0
+
+-   Added "Desktop Only" screenshot mode
+-   When enabled, automatically minimizes all windows before capturing
+-   Captures only the desktop background without any visible windows
+-   Automatically restores all windows after screenshot is taken
+-   Perfect for capturing clean desktop wallpapers and backgrounds
 
 ### v1.8.0
 

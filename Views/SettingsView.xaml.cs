@@ -91,6 +91,7 @@ namespace PictureDay.Views
             }
 
             LoadMonitorSettings();
+            DesktopOnlyCheckBox.IsChecked = _configManager.Config.DesktopOnly;
             UpdateScheduledTimeDisplay();
         }
 
@@ -144,6 +145,10 @@ namespace PictureDay.Views
         }
 
         private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+        }
+
+        private void DesktopOnlyCheckBox_Changed(object sender, RoutedEventArgs e)
         {
         }
 
@@ -433,6 +438,8 @@ namespace PictureDay.Views
                     _configManager.Config.CaptureAllMonitors = false;
                     _configManager.Config.SelectedMonitorIndex = 0;
                 }
+
+                _configManager.Config.DesktopOnly = DesktopOnlyCheckBox.IsChecked ?? false;
 
                 if (ScheduleModeComboBox.SelectedItem is ComboBoxItem item)
                 {

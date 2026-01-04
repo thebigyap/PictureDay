@@ -26,6 +26,7 @@ namespace PictureDay.Models
         public bool CaptureAllMonitors { get; set; } = false;
         public int SelectedMonitorIndex { get; set; } = 0;
         public string Theme { get; set; } = "Light";
+        public bool DesktopOnly { get; set; } = false;
     }
 }
 

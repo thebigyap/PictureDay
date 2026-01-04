@@ -104,6 +104,8 @@
                            Checked="MonitorSelection_Changed" Margin="0,5"/>
                 <ComboBox x:Name="MonitorComboBox" Height="25" Margin="20,0,0,0"
                          IsEnabled="False" SelectionChanged="MonitorComboBox_SelectionChanged"/>
+                <CheckBox x:Name="DesktopOnlyCheckBox" Content="Desktop Only (hide all windows)"
+                         Margin="0,10,0,0" Checked="DesktopOnlyCheckBox_Changed" Unchecked="DesktopOnlyCheckBox_Changed"/>
             </StackPanel>
         </GroupBox>
 
