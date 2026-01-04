@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Input;
 using PictureDay.Services;
@@ -9,121 +9,121 @@ namespace PictureDay
 {
 	public partial class MainWindow : Window
 	{
-	private ConfigManager? _configManager;
-	private StorageManager? _storageManager;
-	private PrivacyFilter? _privacyFilter;
-	private ScreenshotService? _screenshotService;
+		private ConfigManager? _configManager;
+		private StorageManager? _storageManager;
+		private PrivacyFilter? _privacyFilter;
+		private ScreenshotService? _screenshotService;
 
-	public MainWindow()
-	{
-	InitializeComponent();
-	Title = $"PictureDay - Version: {App.Version}";
-	Loaded += MainWindow_Loaded;
-	SettingsViewControl.SettingsSaved += SettingsViewControl_SettingsSaved;
-	KeyDown += MainWindow_KeyDown;
-	}
+		public MainWindow()
+		{
+			InitializeComponent();
+			Title = $"PictureDay - Version: {App.Version}";
+			Loaded += MainWindow_Loaded;
+			SettingsViewControl.SettingsSaved += SettingsViewControl_SettingsSaved;
+			KeyDown += MainWindow_KeyDown;
+		}
 
-	private void MainWindow_Loaded(object sender, RoutedEventArgs e)
-	{
-	_configManager = (ConfigManager?)Application.Current.Resources["ConfigManager"];
-	_storageManager = (StorageManager?)Application.Current.Resources["StorageManager"];
+		private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+		{
+			_configManager = (ConfigManager?)Application.Current.Resources["ConfigManager"];
+			_storageManager = (StorageManager?)Application.Current.Resources["StorageManager"];
 
-	if (_configManager != null)
-	{
-	_privacyFilter = new PrivacyFilter(_configManager);
-	}
+			if (_configManager != null)
+			{
+				_privacyFilter = new PrivacyFilter(_configManager);
+			}
 
-	if (_storageManager != null && _configManager != null)
-	{
-	_screenshotService = new ScreenshotService(_storageManager, _configManager);
-	PhotoGalleryViewControl.Initialize(_storageManager);
-	}
+			if (_storageManager != null && _configManager != null)
+			{
+				_screenshotService = new ScreenshotService(_storageManager, _configManager);
+				PhotoGalleryViewControl.Initialize(_storageManager);
+			}
 
-	if (_configManager != null)
-	{
-	SettingsViewControl.Initialize(_configManager);
-	}
-	}
+			if (_configManager != null)
+			{
+				SettingsViewControl.Initialize(_configManager);
+			}
+		}
 
-	private void SettingsViewControl_SettingsSaved(object? sender, EventArgs e)
-	{
-	if (_configManager != null)
-	{
-	_privacyFilter?.RefreshBlockedApplications();
-	}
+		private void SettingsViewControl_SettingsSaved(object? sender, EventArgs e)
+		{
+			if (_configManager != null)
+			{
+				_privacyFilter?.RefreshBlockedApplications();
+			}
 
-	if (_storageManager != null)
-	{
-	PhotoGalleryViewControl.Initialize(_storageManager);
-	}
-	}
+			if (_storageManager != null)
+			{
+				PhotoGalleryViewControl.Initialize(_storageManager);
+			}
+		}
 
-	public void ShowSettingsTab()
-	{
-	MainTabControl.SelectedIndex = 1;
-	}
+		public void ShowSettingsTab()
+		{
+			MainTabControl.SelectedIndex = 1;
+		}
 
-	public void RefreshGallery()
-	{
-	if (_storageManager != null)
-	{
-	PhotoGalleryViewControl.Initialize(_storageManager);
-	}
-	}
+		public void RefreshGallery()
+		{
+			if (_storageManager != null)
+			{
+				PhotoGalleryViewControl.Initialize(_storageManager);
+			}
+		}
 
-	private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-	{
-	e.Cancel = true;
-	WindowState = WindowState.Minimized;
-	Hide();
-	}
+		private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+		{
+			e.Cancel = true;
+			WindowState = WindowState.Minimized;
+			Hide();
+		}
 
-	private void TakeScreenshotButton_Click(object sender, RoutedEventArgs e)
-	{
-	TakeScreenshot();
-	}
+		private void TakeScreenshotButton_Click(object sender, RoutedEventArgs e)
+		{
+			TakeScreenshot();
+		}
 
-	private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-	{
-	if (e.Key == Key.F12 || (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control))
-	{
-	TakeScreenshot();
-	e.Handled = true;
-	}
-	}
+		private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+		{
+			if (e.Key == Key.F12 || (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control))
+			{
+				TakeScreenshot();
+				e.Handled = true;
+			}
+		}
 
-	private void TakeScreenshot()
-	{
-	if (_screenshotService == null || _privacyFilter == null)
-	{
-	System.Windows.MessageBox.Show("Screenshot service not available.", "Error",
-		System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-	return;
-	}
+		private void TakeScreenshot()
+		{
+			if (_screenshotService == null || _privacyFilter == null)
+			{
+				System.Windows.MessageBox.Show("Screenshot service not available.", "Error",
+					System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+				return;
+			}
 
-	if (_privacyFilter.ShouldBlockScreenshot())
-	{
-	System.Windows.MessageBox.Show("Screenshot blocked: Privacy filter detected blocked applications or private browsing mode.",
-		"Privacy Protection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-	return;
-	}
+			if (_privacyFilter.ShouldBlockScreenshot())
+			{
+				System.Windows.MessageBox.Show("Screenshot blocked: Privacy filter detected blocked applications or private browsing mode.",
+					"Privacy Protection", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+				return;
+			}
 
-	string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false);
-	if (!string.IsNullOrEmpty(screenshotPath))
-	{
-	System.Windows.MessageBox.Show($"Screenshot saved: {screenshotPath}", "Success",
-		System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+			string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false);
+			if (!string.IsNullOrEmpty(screenshotPath))
+			{
+				System.Windows.MessageBox.Show($"Screenshot saved: {screenshotPath}", "Success",
+					System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
 
-	if (_storageManager != null)
-	{
-	PhotoGalleryViewControl.Initialize(_storageManager);
-	}
-	}
-	else
-	{
-	System.Windows.MessageBox.Show("Failed to capture screenshot.", "Error",
-		System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-	}
-	}
+				if (_storageManager != null)
+				{
+					PhotoGalleryViewControl.Initialize(_storageManager);
+				}
+			}
+			else
+			{
+				System.Windows.MessageBox.Show("Failed to capture screenshot.", "Error",
+					System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+			}
+		}
 	}
 }

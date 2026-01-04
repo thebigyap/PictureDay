@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 echo ========================================
 echo PictureDay Release Build Script
 echo ========================================
@@ -8,18 +8,18 @@ echo Building release...
 dotnet build -c Release
 
 if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo ERROR: Build failed!
-    pause
-    exit /b 1
+	echo.
+	echo ERROR: Build failed!
+	pause
+	exit /b 1
 )
 
 echo.
 :VERSION_PROMPT
 set /p VERSION="Enter version number (e.g., 1.8.0): "
 if "%VERSION%"=="" (
-    echo Version is required!
-    goto VERSION_PROMPT
+	echo Version is required!
+	goto VERSION_PROMPT
 )
 
 REM Trim leading and trailing spaces from version
@@ -48,10 +48,10 @@ copy "%RELEASE_DIR%\Newtonsoft.Json.dll" "%OUTPUT_DIR%\" >nul
 
 set UPDATER_DIR=Updater\bin\Release\net8.0-windows
 if exist "%UPDATER_DIR%\PictureDayUpdater.exe" (
-    copy "%UPDATER_DIR%\PictureDayUpdater.exe" "%OUTPUT_DIR%\" >nul
-    copy "%UPDATER_DIR%\PictureDayUpdater.dll" "%OUTPUT_DIR%\" >nul
-    copy "%UPDATER_DIR%\PictureDayUpdater.deps.json" "%OUTPUT_DIR%\" >nul
-    copy "%UPDATER_DIR%\PictureDayUpdater.runtimeconfig.json" "%OUTPUT_DIR%\" >nul
+	copy "%UPDATER_DIR%\PictureDayUpdater.exe" "%OUTPUT_DIR%\" >nul
+	copy "%UPDATER_DIR%\PictureDayUpdater.dll" "%OUTPUT_DIR%\" >nul
+	copy "%UPDATER_DIR%\PictureDayUpdater.deps.json" "%OUTPUT_DIR%\" >nul
+	copy "%UPDATER_DIR%\PictureDayUpdater.runtimeconfig.json" "%OUTPUT_DIR%\" >nul
 )
 
 echo.
@@ -59,10 +59,10 @@ echo Creating ZIP archive...
 powershell -Command "Compress-Archive -Path '%OUTPUT_DIR%\*' -DestinationPath '%ZIP_NAME%' -Force"
 
 if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo ERROR: Failed to create ZIP file!
-    pause
-    exit /b 1
+	echo.
+	echo ERROR: Failed to create ZIP file!
+	pause
+	exit /b 1
 )
 
 echo.
