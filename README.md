@@ -1,3 +1,7 @@
+# HELP WANTED - GRAPHICS DESIGNERS
+
+PictureDay is in need of a logo/icon! If you are a logo/photoshop designer and would like to get credit for helping out, please messaage me!
+
 # PictureDay
 
 A Windows desktop application that captures daily screenshots with privacy protection features. I made this because I've recently found some old pictures of my desktop from 4+ years ago and I thought it would be cool and interesting for anyone to be able to track how their computer changes over time.
