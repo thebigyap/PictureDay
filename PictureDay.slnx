@@ -1,3 +1,6 @@
 <Solution>
+  <Folder Name="/Updater/">
+    <Project Path="Updater/PictureDayUpdater.csproj" />
+  </Folder>
   <Project Path="PictureDay.csproj" />
 </Solution>

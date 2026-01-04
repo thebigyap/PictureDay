@@ -8,6 +8,11 @@
 	<UseWPF>true</UseWPF>
 	<UseWindowsForms>true</UseWindowsForms>
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+	<Deterministic>true</Deterministic>
+	<EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+	<EnableDefaultEmbeddedResourceItems>true</EnableDefaultEmbeddedResourceItems>
+	<DisableImplicitFrameworkReferences>false</DisableImplicitFrameworkReferences>
 </PropertyGroup>
 
 <ItemGroup>
@@ -19,5 +24,9 @@
 	<Resource Include="Themes\LightTheme.xaml" />
 	<Resource Include="Themes\DarkTheme.xaml" />
 </ItemGroup>
+
+<PropertyGroup>
+	<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+</PropertyGroup>
 
 </Project>

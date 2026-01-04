@@ -24,6 +24,7 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 
 -   **Manual Screenshot Trigger**: Take screenshots on-demand via button, system tray menu, or keyboard shortcuts (F12 or Ctrl+S)
 -   **System Tray Integration**: Runs in the background with system tray icon for quick access
+-   **Auto-Updates**: Automatically checks for updates on startup; manual check available via system tray menu
 
 ### Scheduling Options
 
@@ -221,6 +222,7 @@ This will:
 -   Build the application as a self-contained release (includes .NET runtime)
 -   Package everything into a ZIP file named `PictureDay-v[VERSION]-Release.zip`
 -   Include README and LICENSE files
+-   Include PictureDayUpdater.exe for auto-update functionality
 -   Create a portable package that works on any Windows PC without requiring .NET installation
 
 The ZIP file can be extracted and run on any Windows PC - Run `PictureDay.exe`
@@ -237,6 +239,15 @@ PictureDay/
 ```
 
 ## Version History
+
+### v2.0.0
+
+-   **Auto-Update System**: Integrated automatic update checking and installation
+-   PictureDay now checks for updates on startup (after 3 second delay)
+-   Manual "Check for Updates" option in system tray menu
+-   Update window shows available versions and download progress
+-   Seamless update process: downloads, applies, and restarts automatically
+-   Update service runs in separate process for reliability
 
 ### v1.9.0
 

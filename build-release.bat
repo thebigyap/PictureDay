@@ -46,6 +46,14 @@ copy "%RELEASE_DIR%\PictureDay.deps.json" "%OUTPUT_DIR%\" >nul
 copy "%RELEASE_DIR%\PictureDay.runtimeconfig.json" "%OUTPUT_DIR%\" >nul
 copy "%RELEASE_DIR%\Newtonsoft.Json.dll" "%OUTPUT_DIR%\" >nul
 
+set UPDATER_DIR=Updater\bin\Release\net8.0-windows
+if exist "%UPDATER_DIR%\PictureDayUpdater.exe" (
+    copy "%UPDATER_DIR%\PictureDayUpdater.exe" "%OUTPUT_DIR%\" >nul
+    copy "%UPDATER_DIR%\PictureDayUpdater.dll" "%OUTPUT_DIR%\" >nul
+    copy "%UPDATER_DIR%\PictureDayUpdater.deps.json" "%OUTPUT_DIR%\" >nul
+    copy "%UPDATER_DIR%\PictureDayUpdater.runtimeconfig.json" "%OUTPUT_DIR%\" >nul
+)
+
 echo.
 echo Creating ZIP archive...
 powershell -Command "Compress-Archive -Path '%OUTPUT_DIR%\*' -DestinationPath '%ZIP_NAME%' -Force"

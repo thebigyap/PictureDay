@@ -1,15 +1,17 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using PictureDay.Services;
+using PictureDay.Views;
 using Application = System.Windows.Application;
 
 namespace PictureDay
 {
     public partial class App : Application
     {
-        public const string Version = "1.9.0";
+        public const string Version = "2.0.0";
 
         private NotifyIcon? _notifyIcon;
         private ConfigManager? _configManager;
@@ -17,6 +19,7 @@ namespace PictureDay
         private ScreenshotService? _screenshotService;
         private PrivacyFilter? _privacyFilter;
         private StorageManager? _storageManager;
+        private UpdateService? _updateService;
 
         [DllImport("kernel32.dll")]
         private static extern bool AllocConsole();
@@ -89,6 +92,20 @@ namespace PictureDay
                 Resources["StorageManager"] = _storageManager;
                 Resources["DailyScheduler"] = _dailyScheduler;
                 Resources["ScreenshotService"] = _screenshotService;
+
+                DebugWriteLine("Initializing UpdateService...");
+                _updateService = new UpdateService();
+                string appDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(3000);
+                    if (!_updateService.IsUpdaterRunning())
+                    {
+                        await _updateService.StartUpdaterAsync(appDirectory);
+                    }
+                });
+                Resources["UpdateService"] = _updateService;
+
                 DebugWriteLine("PictureDay started successfully!");
                 DebugWriteLine("Press any key to close this console (app will continue running)...");
             }
@@ -144,6 +161,7 @@ namespace PictureDay
                     mainWin.ShowSettingsTab();
                 }
             });
+            contextMenu.Items.Add("Check for Updates", null, (s, e) => CheckForUpdates());
             contextMenu.Items.Add("-");
             contextMenu.Items.Add("Exit", null, (s, e) => Shutdown());
             _notifyIcon.ContextMenuStrip = contextMenu;
@@ -184,6 +202,38 @@ namespace PictureDay
             }
         }
 
+        private void CheckForUpdates()
+        {
+            if (_updateService == null)
+            {
+                System.Windows.MessageBox.Show("Update service not available.", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            UpdateWindow updateWindow = new UpdateWindow();
+            updateWindow.Initialize(_updateService);
+            updateWindow.Show();
+
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(1000);
+                if (_updateService.IsUpdaterRunning())
+                {
+                    await _updateService.CheckForUpdatesAsync();
+                }
+                else
+                {
+                    string appDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
+                    if (await _updateService.StartUpdaterAsync(appDirectory))
+                    {
+                        await Task.Delay(1000);
+                        await _updateService.CheckForUpdatesAsync();
+                    }
+                }
+            });
+        }
+
         public void ApplyTheme(string theme)
         {
             var mergedDicts = Resources.MergedDictionaries;
@@ -205,6 +255,7 @@ namespace PictureDay
         protected override void OnExit(System.Windows.ExitEventArgs e)
         {
             _dailyScheduler?.Stop();
+            _updateService?.Dispose();
             _notifyIcon?.Dispose();
             base.OnExit(e);
         }
