@@ -203,6 +203,23 @@ dotnet build
 dotnet run
 ```
 
+### Building Release Package
+
+To create a release package:
+
+```bash
+build-release.bat
+```
+
+This will:
+
+-   Build the application as a self-contained release (includes .NET runtime)
+-   Package everything into a ZIP file named `PictureDay-v[VERSION]-Release.zip`
+-   Include README and LICENSE files
+-   Create a portable package that works on any Windows PC without requiring .NET installation
+
+The ZIP file can be extracted and run on any Windows PC - Run `PictureDay.exe`
+
 ### Project Structure
 
 ```
