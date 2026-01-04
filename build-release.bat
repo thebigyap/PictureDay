@@ -22,6 +22,10 @@ if "%VERSION%"=="" (
     goto VERSION_PROMPT
 )
 
+REM Trim leading and trailing spaces from version
+for /f "tokens=* delims= " %%a in ("%VERSION%") do set VERSION=%%a
+for /f "tokens=* delims= " %%a in ("%VERSION%") do set VERSION=%%a
+
 set RELEASE_DIR=bin\Release\net8.0-windows
 set OUTPUT_DIR=Release-Package
 set ZIP_NAME=PictureDay-v%VERSION%-Release.zip
