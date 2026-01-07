@@ -14,11 +14,12 @@ namespace PictureDay.Models
 	{
 		public List<string> BlockedApplications { get; set; } = new List<string>();
 		public string ScreenshotDirectory { get; set; } = string.Empty;
-		public DateTime? LastScreenshotDate { get; set; }
-		public int Quality { get; set; } = 90;
-		public string ImageFormat { get; set; } = "JPEG";
-		public bool StartWithWindows { get; set; } = true;
-		public TimeSpan? TodayScheduledTime { get; set; }
+	public DateTime? LastScreenshotDate { get; set; }
+	public int Quality { get; set; } = 90;
+	public string ImageFormat { get; set; } = "JPEG";
+	public bool StartWithWindows { get; set; } = true;
+	public TimeSpan? TodayScheduledTime { get; set; }
+	public DateTime? ScheduledTimeDate { get; set; }
 		public ScheduleMode ScheduleMode { get; set; } = ScheduleMode.Random;
 		public TimeSpan? FixedScheduledTime { get; set; }
 		public TimeSpan? ScheduleRangeStart { get; set; }

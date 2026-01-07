@@ -396,31 +396,31 @@ namespace PictureDay.Views
 			zoomPanel.Children.Add(zoomInButton);
 			zoomPanel.Children.Add(zoomResetButton);
 
-			System.Windows.Controls.Button leftArrow = new System.Windows.Controls.Button
-			{
-				Content = "â—€",
-				FontSize = 24,
-				Width = 50,
-				Height = 50,
-				HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-				VerticalAlignment = System.Windows.VerticalAlignment.Center,
-				Margin = new Thickness(10, 0, 0, 0),
-				Padding = new Thickness(0),
-				Visibility = currentIndex < allScreenshots.Count - 1 ? Visibility.Visible : Visibility.Hidden
-			};
+		System.Windows.Controls.Button leftArrow = new System.Windows.Controls.Button
+		{
+			Content = "←",
+			FontSize = 24,
+			Width = 50,
+			Height = 50,
+			HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+			VerticalAlignment = System.Windows.VerticalAlignment.Center,
+			Margin = new Thickness(10, 0, 0, 0),
+			Padding = new Thickness(0),
+			Visibility = currentIndex < allScreenshots.Count - 1 ? Visibility.Visible : Visibility.Hidden
+		};
 
-			System.Windows.Controls.Button rightArrow = new System.Windows.Controls.Button
-			{
-				Content = "â–¶",
-				FontSize = 24,
-				Width = 50,
-				Height = 50,
-				HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-				VerticalAlignment = System.Windows.VerticalAlignment.Center,
-				Margin = new Thickness(0, 0, 10, 0),
-				Padding = new Thickness(0),
-				Visibility = currentIndex > 0 ? Visibility.Visible : Visibility.Hidden
-			};
+		System.Windows.Controls.Button rightArrow = new System.Windows.Controls.Button
+		{
+			Content = "→",
+			FontSize = 24,
+			Width = 50,
+			Height = 50,
+			HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+			VerticalAlignment = System.Windows.VerticalAlignment.Center,
+			Margin = new Thickness(0, 0, 10, 0),
+			Padding = new Thickness(0),
+			Visibility = currentIndex > 0 ? Visibility.Visible : Visibility.Hidden
+		};
 
 			Action updateZoom = () =>
 			{

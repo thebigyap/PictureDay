@@ -175,46 +175,80 @@ namespace PictureDay.Views
 				return;
 			}
 
-			if (_configManager.Config.TodayScheduledTime.HasValue)
+		if (_configManager.Config.TodayScheduledTime.HasValue)
+		{
+			TimeSpan scheduledTime = _configManager.Config.TodayScheduledTime.Value;
+			DateTime now = DateTime.Now;
+			TimeSpan currentTime = now.TimeOfDay;
+
+			string timeString = FormatTimeSpan(scheduledTime);
+
+			bool hasPassed = HasScheduledTimePassedForDisplay(scheduledTime, currentTime);
+			if (hasPassed)
 			{
-				TimeSpan scheduledTime = _configManager.Config.TodayScheduledTime.Value;
-				DateTime now = DateTime.Now;
-				TimeSpan currentTime = now.TimeOfDay;
-
-				string timeString = FormatTimeSpan(scheduledTime);
-
-				if (scheduledTime < currentTime)
-				{
-					ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString} (already passed - will schedule for tomorrow)";
-				}
-				else
-				{
-					ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString}";
-				}
+				ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString} (already passed - will schedule for tomorrow)";
 			}
+			else
+			{
+				ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString}";
+			}
+		}
 			else
 			{
 				ScheduledTimeTextBlock.Text = "Today's scheduled time: Not set";
 			}
 		}
 
-		private string FormatTimeSpan(TimeSpan timeSpan)
+	private string FormatTimeSpan(TimeSpan timeSpan)
+	{
+		int hours = timeSpan.Hours;
+		int minutes = timeSpan.Minutes;
+		string period = hours >= 12 ? "PM" : "AM";
+
+		if (hours == 0)
 		{
-			int hours = timeSpan.Hours;
-			int minutes = timeSpan.Minutes;
-			string period = hours >= 12 ? "PM" : "AM";
-
-			if (hours == 0)
-			{
-				hours = 12;
-			}
-			else if (hours > 12)
-			{
-				hours -= 12;
-			}
-
-			return $"{hours}:{minutes:D2} {period}";
+			hours = 12;
 		}
+		else if (hours > 12)
+		{
+			hours -= 12;
+		}
+
+		return $"{hours}:{minutes:D2} {period}";
+	}
+
+	private bool HasScheduledTimePassedForDisplay(TimeSpan scheduledTime, TimeSpan currentTime)
+	{
+		if (scheduledTime.TotalHours >= 24 || scheduledTime.TotalHours < 9)
+		{
+			TimeSpan normalizedScheduled = scheduledTime;
+			if (normalizedScheduled.TotalHours >= 24)
+			{
+				normalizedScheduled = normalizedScheduled.Subtract(TimeSpan.FromDays(1));
+			}
+
+		if (normalizedScheduled.TotalHours < 9)
+		{
+			if (currentTime.TotalHours >= 21)
+			{
+				return false;
+			}
+			if (currentTime.TotalHours >= 9)
+			{
+				return true;
+			}
+			TimeSpan windowEnd = normalizedScheduled.Add(TimeSpan.FromMinutes(2.5));
+			return currentTime > windowEnd;
+		}
+		}
+		else
+		{
+			TimeSpan windowEnd = scheduledTime.Add(TimeSpan.FromMinutes(2.5));
+			return currentTime > windowEnd;
+		}
+
+		return false;
+	}
 
 		private void QualitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
 		{

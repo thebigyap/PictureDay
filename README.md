@@ -240,6 +240,17 @@ PictureDay/
 
 ## Version History
 
+### v2.1.0
+
+-   **Fixed Scheduled Time Daily Reset**: Scheduled times now properly update each day instead of getting stuck
+-   Added `ScheduledTimeDate` tracking to ensure scheduled times are recalculated daily
+-   **Fixed "Already Passed" Logic for Late-Night Times**: Corrected display logic for times after midnight
+-   Times after midnight (before 9 AM) are now correctly recognized as being for the next day
+-   Display now checks against the full scheduled window (time + 2.5 minutes) instead of just the exact time
+-   Improved time comparison logic to properly handle day boundaries
+-   **Fixed Arrow Character Encoding**: Fixed corrupted Unicode characters in photo gallery navigation arrows
+-   Left and right navigation arrows in image viewer now display correctly (← and →)
+
 ### v2.0.0
 
 -   **Auto-Update System**: Integrated automatic update checking and installation

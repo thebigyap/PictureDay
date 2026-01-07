@@ -132,13 +132,14 @@ namespace PictureDay.Services
 				return;
 			}
 
-			CheckForOrphanedBackups(now);
+		CheckForOrphanedBackups(now);
 
-			if (_configManager.Config.TodayScheduledTime == null ||
-				_configManager.Config.LastScreenshotDate?.Date != now.Date)
-			{
-				_scheduledTime = DetermineScheduledTime();
-				_configManager.Config.TodayScheduledTime = _scheduledTime;
+		if (_configManager.Config.TodayScheduledTime == null ||
+			_configManager.Config.ScheduledTimeDate?.Date != now.Date)
+		{
+			_scheduledTime = DetermineScheduledTime();
+			_configManager.Config.TodayScheduledTime = _scheduledTime;
+			_configManager.Config.ScheduledTimeDate = now.Date;
 
 				// If scheduled time is after 9 PM (21:00), schedule a backup between 9 AM - 9 PM
 				TimeSpan ninePM = new TimeSpan(21, 0, 0);
