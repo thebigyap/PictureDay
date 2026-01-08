@@ -46,12 +46,14 @@ copy "%RELEASE_DIR%\PictureDay.deps.json" "%OUTPUT_DIR%\" >nul
 copy "%RELEASE_DIR%\PictureDay.runtimeconfig.json" "%OUTPUT_DIR%\" >nul
 copy "%RELEASE_DIR%\Newtonsoft.Json.dll" "%OUTPUT_DIR%\" >nul
 
-set UPDATER_DIR=Updater\bin\Release\net8.0-windows
-if exist "%UPDATER_DIR%\PictureDayUpdater.exe" (
-	copy "%UPDATER_DIR%\PictureDayUpdater.exe" "%OUTPUT_DIR%\" >nul
-	copy "%UPDATER_DIR%\PictureDayUpdater.dll" "%OUTPUT_DIR%\" >nul
-	copy "%UPDATER_DIR%\PictureDayUpdater.deps.json" "%OUTPUT_DIR%\" >nul
-	copy "%UPDATER_DIR%\PictureDayUpdater.runtimeconfig.json" "%OUTPUT_DIR%\" >nul
+if exist "%RELEASE_DIR%\PictureDayUpdater.exe" (
+	copy "%RELEASE_DIR%\PictureDayUpdater.exe" "%OUTPUT_DIR%\" >nul
+	copy "%RELEASE_DIR%\PictureDayUpdater.dll" "%OUTPUT_DIR%\" >nul
+	copy "%RELEASE_DIR%\PictureDayUpdater.deps.json" "%OUTPUT_DIR%\" >nul
+	copy "%RELEASE_DIR%\PictureDayUpdater.runtimeconfig.json" "%OUTPUT_DIR%\" >nul
+) else (
+	echo WARNING: PictureDayUpdater.exe not found in release directory!
+	echo The post-build copy step may have failed.
 )
 
 echo.

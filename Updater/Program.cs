@@ -77,12 +77,19 @@ namespace PictureDayUpdater
 
 					await _pipeServer.WaitForConnectionAsync();
 					await HandleClient();
-					_pipeServer.Disconnect();
-					_pipeServer.Close();
 				}
 				catch (Exception ex)
 				{
 					Console.WriteLine($"Pipe error: {ex.Message}");
+					if (_pipeServer != null)
+					{
+						try
+						{
+							_pipeServer.Disconnect();
+							_pipeServer.Close();
+						}
+						catch { }
+					}
 					await Task.Delay(1000);
 				}
 			}
@@ -90,40 +97,64 @@ namespace PictureDayUpdater
 
 		private static async Task HandleClient()
 		{
-			if (_pipeServer == null || !_pipeServer.IsConnected) return;
-
-			try
+			while (_pipeServer != null && _pipeServer.IsConnected)
 			{
-				byte[] buffer = new byte[4096];
-				int bytesRead = await _pipeServer.ReadAsync(buffer, 0, buffer.Length);
-
-				if (bytesRead > 0)
+				try
 				{
-					string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-					JObject? request = JsonConvert.DeserializeObject<JObject>(message);
+					byte[] buffer = new byte[4096];
+					int bytesRead = await _pipeServer.ReadAsync(buffer, 0, buffer.Length);
 
-					if (request != null)
+					if (bytesRead == 0)
 					{
-						string? command = request["command"]?.ToString();
+						break;
+					}
 
-						switch (command)
+					if (bytesRead > 0)
+					{
+						string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+						JObject? request = JsonConvert.DeserializeObject<JObject>(message);
+
+						if (request != null)
 						{
-							case "check":
-								await HandleCheckUpdate();
-								break;
-							case "download":
-								await HandleDownload();
-								break;
-							case "apply":
-								await HandleApplyUpdate();
-								break;
+							string? command = request["command"]?.ToString();
+
+							switch (command)
+							{
+								case "check":
+									await HandleCheckUpdate();
+									break;
+								case "download":
+									await HandleDownload();
+									break;
+								case "apply":
+									await HandleApplyUpdate();
+									break;
+							}
 						}
 					}
 				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($"Error handling client request: {ex.Message}");
+					try
+					{
+						await SendResponse(new { error = ex.Message });
+					}
+					catch
+					{
+						break;
+					}
+				}
 			}
-			catch (Exception ex)
+
+			if (_pipeServer != null)
 			{
-				await SendResponse(new { error = ex.Message });
+				try
+				{
+					_pipeServer.Disconnect();
+					_pipeServer.Close();
+				}
+				catch { }
 			}
 		}
 
@@ -133,44 +164,48 @@ namespace PictureDayUpdater
 			{
 				using HttpClient client = new HttpClient();
 				client.DefaultRequestHeaders.Add("User-Agent", "PictureDayUpdater");
+				client.Timeout = TimeSpan.FromSeconds(30);
 
 				string url = GitHubReleasesUrl;
 
 				string response = await client.GetStringAsync(url);
 				JObject? release = JsonConvert.DeserializeObject<JObject>(response);
 
-				if (release != null)
+				if (release == null)
 				{
-					string? latestVersion = release["tag_name"]?.ToString()?.TrimStart('v');
-					string? downloadUrl = null;
+					await SendResponse(new { command = "check", error = "Failed to parse GitHub API response" });
+					return;
+				}
 
-					JArray? assets = release["assets"] as JArray;
-					if (assets != null)
+				string? latestVersion = release["tag_name"]?.ToString()?.TrimStart('v');
+				string? downloadUrl = null;
+
+				JArray? assets = release["assets"] as JArray;
+				if (assets != null)
+				{
+					foreach (JObject asset in assets)
 					{
-						foreach (JObject asset in assets)
+						string? name = asset["name"]?.ToString();
+						if (name != null && name.EndsWith(".zip"))
 						{
-							string? name = asset["name"]?.ToString();
-							if (name != null && name.EndsWith(".zip"))
-							{
-								downloadUrl = asset["browser_download_url"]?.ToString();
-								break;
-							}
+							downloadUrl = asset["browser_download_url"]?.ToString();
+							break;
 						}
 					}
-
-					bool hasUpdate = !string.IsNullOrEmpty(latestVersion) &&
-									!string.IsNullOrEmpty(downloadUrl) &&
-									CompareVersions(latestVersion, _currentVersion) > 0;
-
-					await SendResponse(new
-					{
-						command = "check",
-						hasUpdate = hasUpdate,
-						latestVersion = latestVersion,
-						currentVersion = _currentVersion,
-						downloadUrl = downloadUrl
-					});
 				}
+
+				bool hasUpdate = !string.IsNullOrEmpty(latestVersion) &&
+								!string.IsNullOrEmpty(downloadUrl) &&
+								CompareVersions(latestVersion, _currentVersion) > 0;
+
+				await SendResponse(new
+				{
+					command = "check",
+					hasUpdate = hasUpdate,
+					latestVersion = latestVersion ?? "",
+					currentVersion = _currentVersion,
+					downloadUrl = downloadUrl ?? ""
+				});
 			}
 			catch (Exception ex)
 			{
@@ -297,14 +332,19 @@ timeout /t 2 /nobreak >nul
 taskkill /F /IM PictureDay.exe 2>nul
 timeout /t 1 /nobreak >nul
 
-xcopy /Y /E /I ""{extractPath}\*"" ""{_appDirectory}""
+xcopy /Y /E /I ""{extractPath}\*"" ""{_appDirectory}"" >nul 2>&1
+if errorlevel 1 (
+    echo Update failed: xcopy error
+    pause
+    exit /b 1
+)
 
 start """" ""{_appDirectory}\PictureDay.exe""
 
 timeout /t 2 /nobreak >nul
-del /F /Q ""{_tempDownloadPath}""
-rmdir /S /Q ""{extractPath}""
-del /F /Q ""{scriptPath}""
+del /F /Q ""{_tempDownloadPath}"" >nul 2>&1
+rmdir /S /Q ""{extractPath}"" >nul 2>&1
+del /F /Q ""{scriptPath}"" >nul 2>&1
 ";
 
 				await File.WriteAllTextAsync(scriptPath, scriptContent);
@@ -313,13 +353,26 @@ del /F /Q ""{scriptPath}""
 				{
 					FileName = scriptPath,
 					CreateNoWindow = true,
-					UseShellExecute = false
+					UseShellExecute = false,
+					WindowStyle = ProcessWindowStyle.Hidden
 				};
 
-				Process.Start(startInfo);
+				Process? scriptProcess = Process.Start(startInfo);
+				if (scriptProcess == null)
+				{
+					await SendResponse(new { command = "apply", error = "Failed to start update script" });
+					return;
+				}
 
-				await SendResponse(new { command = "apply", status = "applied" });
+				try
+				{
+					await SendResponse(new { command = "apply", status = "applied" });
+				}
+				catch
+				{
+				}
 
+				await Task.Delay(500);
 				Environment.Exit(0);
 			}
 			catch (Exception ex)

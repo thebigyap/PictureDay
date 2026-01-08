@@ -11,7 +11,7 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.1.0";
+		public const string Version = "2.2.0";
 
 		private NotifyIcon? _notifyIcon;
 		private ConfigManager? _configManager;
@@ -20,6 +20,7 @@ namespace PictureDay
 		private PrivacyFilter? _privacyFilter;
 		private StorageManager? _storageManager;
 		private UpdateService? _updateService;
+		private static bool _isShuttingDownForUpdate = false;
 
 		[DllImport("kernel32.dll")]
 		private static extern bool AllocConsole();
@@ -217,19 +218,39 @@ namespace PictureDay
 
 			_ = Task.Run(async () =>
 			{
-				await Task.Delay(1000);
-				if (_updateService.IsUpdaterRunning())
+				try
 				{
+					await Task.Delay(1000);
+					string appDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
+
+					if (!_updateService.IsConnected())
+					{
+						if (!_updateService.IsUpdaterRunning())
+						{
+							if (!await _updateService.StartUpdaterAsync(appDirectory))
+							{
+								return;
+							}
+							await Task.Delay(1500);
+						}
+						else
+						{
+							if (!await _updateService.ConnectToUpdaterAsync())
+							{
+								if (!await _updateService.StartUpdaterAsync(appDirectory))
+								{
+									return;
+								}
+								await Task.Delay(1500);
+							}
+						}
+					}
+
 					await _updateService.CheckForUpdatesAsync();
 				}
-				else
+				catch (Exception ex)
 				{
-					string appDirectory = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
-					if (await _updateService.StartUpdaterAsync(appDirectory))
-					{
-						await Task.Delay(1000);
-						await _updateService.CheckForUpdatesAsync();
-					}
+					System.Diagnostics.Debug.WriteLine($"Error in CheckForUpdates: {ex.Message}");
 				}
 			});
 		}
@@ -255,9 +276,21 @@ namespace PictureDay
 		protected override void OnExit(System.Windows.ExitEventArgs e)
 		{
 			_dailyScheduler?.Stop();
+
+			if (!_isShuttingDownForUpdate)
+			{
+				_updateService?.KillUpdater();
+			}
+
 			_updateService?.Dispose();
 			_notifyIcon?.Dispose();
+
 			base.OnExit(e);
+		}
+
+		public static void SetShuttingDownForUpdate(bool value)
+		{
+			_isShuttingDownForUpdate = value;
 		}
 	}
 }

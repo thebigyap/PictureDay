@@ -21,6 +21,10 @@
 </ItemGroup>
 
 <ItemGroup>
+	<ProjectReference Include="Updater\PictureDayUpdater.csproj" />
+</ItemGroup>
+
+<ItemGroup>
 	<Resource Include="Themes\LightTheme.xaml" />
 	<Resource Include="Themes\DarkTheme.xaml" />
 </ItemGroup>
@@ -28,5 +32,12 @@
 <PropertyGroup>
 	<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 </PropertyGroup>
+
+<Target Name="CopyUpdaterFiles" AfterTargets="Build" DependsOnTargets="ResolveProjectReferences">
+	<ItemGroup>
+		<UpdaterFiles Include="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\$(TargetFramework)\PictureDayUpdater.*" />
+	</ItemGroup>
+	<Copy SourceFiles="@(UpdaterFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+</Target>
 
 </Project>

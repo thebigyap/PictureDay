@@ -58,6 +58,8 @@ namespace PictureDay.Views
 					DownloadProgressBar.Visibility = Visibility.Collapsed;
 					ProgressTextBlock.Visibility = Visibility.Collapsed;
 					DownloadButton.Visibility = Visibility.Collapsed;
+					OkButton.Visibility = Visibility.Visible;
+					CloseButton.Visibility = Visibility.Collapsed;
 				}
 				else
 				{
@@ -65,6 +67,7 @@ namespace PictureDay.Views
 					ProgressTextBlock.Text = $"Downloading: {e.Progress}% ({FormatBytes(e.Downloaded)} / {FormatBytes(e.Total)})";
 					DownloadProgressBar.Visibility = Visibility.Visible;
 					ProgressTextBlock.Visibility = Visibility.Visible;
+					DownloadButton.Visibility = Visibility.Collapsed;
 				}
 			});
 		}
@@ -88,9 +91,10 @@ namespace PictureDay.Views
 				MessageTextBlock.Text = "Please wait while the update is downloaded...";
 				YesButton.Visibility = Visibility.Collapsed;
 				NoButton.Visibility = Visibility.Collapsed;
-				DownloadButton.Visibility = Visibility.Visible;
+				DownloadButton.Visibility = Visibility.Collapsed;
 				DownloadProgressBar.Visibility = Visibility.Visible;
 				ProgressTextBlock.Visibility = Visibility.Visible;
+				CloseButton.Visibility = Visibility.Collapsed;
 
 				_ = _updateService.StartDownloadAsync();
 			}
@@ -110,7 +114,22 @@ namespace PictureDay.Views
 		{
 			if (_updateService != null)
 			{
+				TitleTextBlock.Text = "Downloading Update";
+				MessageTextBlock.Text = "Please wait while the update is downloaded...";
+				DownloadButton.Visibility = Visibility.Collapsed;
+				DownloadProgressBar.Visibility = Visibility.Visible;
+				ProgressTextBlock.Visibility = Visibility.Visible;
+				CloseButton.Visibility = Visibility.Collapsed;
+
 				_ = _updateService.StartDownloadAsync();
+			}
+		}
+
+		private void OkButton_Click(object sender, RoutedEventArgs e)
+		{
+			if (_updateService != null)
+			{
+				_updateService.ApplyUpdate();
 			}
 		}
 

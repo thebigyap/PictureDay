@@ -240,6 +240,20 @@ PictureDay/
 
 ## Version History
 
+### v2.2.0
+
+-   **Fixed Update System**: Completely overhauled the update mechanism for reliability
+-   Fixed update service connection issues that caused "Looking for updates..." to hang indefinitely
+-   Improved error handling and connection retry logic for update checks
+-   Fixed updater executable not being copied during build process
+-   **Fixed Update Window UI**: Added missing OK button on download complete screen
+-   Fixed Download button remaining visible and clickable during download process
+-   **Fixed Update Process**: Fixed critical bug where updates weren't being applied correctly
+-   Updater now properly waits for extraction and script creation before PictureDay shuts down
+-   Improved batch script error handling to detect and report update failures
+-   Fixed updater being killed on normal exit (now only killed when not updating)
+-   Update process now properly completes before application restart
+
 ### v2.1.0
 
 -   **Fixed Scheduled Time Daily Reset**: Scheduled times now properly update each day instead of getting stuck

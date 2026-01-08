@@ -28,11 +28,16 @@ namespace PictureDay.Services
 			return processes.Length > 0;
 		}
 
+		public bool IsConnected()
+		{
+			return _isConnected && _pipeClient != null && _pipeClient.IsConnected;
+		}
+
 		public async Task<bool> StartUpdaterAsync(string appDirectory)
 		{
 			if (IsUpdaterRunning())
 			{
-				return false;
+				return await ConnectToUpdaterAsync();
 			}
 
 			try
@@ -40,6 +45,7 @@ namespace PictureDay.Services
 				string updaterPath = Path.Combine(appDirectory, UpdaterExeName);
 				if (!File.Exists(updaterPath))
 				{
+					UpdateError?.Invoke(this, $"Updater executable not found at: {updaterPath}");
 					return false;
 				}
 
@@ -55,32 +61,54 @@ namespace PictureDay.Services
 				_updaterProcess = Process.Start(startInfo);
 				if (_updaterProcess == null)
 				{
+					UpdateError?.Invoke(this, "Failed to start updater process.");
 					return false;
 				}
 
-				await Task.Delay(1000);
-				return await ConnectToUpdaterAsync();
+				for (int i = 0; i < 10; i++)
+				{
+					await Task.Delay(500);
+					if (await ConnectToUpdaterAsync())
+					{
+						return true;
+					}
+				}
+
+				UpdateError?.Invoke(this, "Failed to connect to updater after starting.");
+				return false;
 			}
 			catch (Exception ex)
 			{
 				System.Diagnostics.Debug.WriteLine($"Error starting updater: {ex.Message}");
+				UpdateError?.Invoke(this, $"Error starting updater: {ex.Message}");
 				return false;
 			}
 		}
 
-		private async Task<bool> ConnectToUpdaterAsync()
+		public async Task<bool> ConnectToUpdaterAsync()
 		{
 			try
 			{
+				if (_pipeClient != null)
+				{
+					try
+					{
+						_pipeClient.Close();
+						_pipeClient.Dispose();
+					}
+					catch { }
+				}
+
 				_pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
 				await _pipeClient.ConnectAsync(5000);
 				_isConnected = true;
 				_ = Task.Run(ListenForMessages);
 				return true;
 			}
-			catch
+			catch (Exception ex)
 			{
 				_isConnected = false;
+				System.Diagnostics.Debug.WriteLine($"Failed to connect to updater: {ex.Message}");
 				return false;
 			}
 		}
@@ -94,21 +122,42 @@ namespace PictureDay.Services
 					byte[] buffer = new byte[4096];
 					int bytesRead = await _pipeClient.ReadAsync(buffer, 0, buffer.Length);
 
+					if (bytesRead == 0)
+					{
+						_isConnected = false;
+						System.Diagnostics.Debug.WriteLine("Pipe read returned 0 bytes - connection closed by server");
+						UpdateError?.Invoke(this, "Connection to updater lost.");
+						break;
+					}
+
 					if (bytesRead > 0)
 					{
 						string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+						System.Diagnostics.Debug.WriteLine($"Received message from updater: {message}");
 						JObject? response = JsonConvert.DeserializeObject<JObject>(message);
 
 						if (response != null)
 						{
 							HandleResponse(response);
 						}
+						else
+						{
+							System.Diagnostics.Debug.WriteLine("Failed to parse response as JSON");
+						}
 					}
+				}
+				catch (System.IO.IOException ioEx)
+				{
+					System.Diagnostics.Debug.WriteLine($"IO error reading from pipe: {ioEx.Message}");
+					_isConnected = false;
+					UpdateError?.Invoke(this, $"Connection error: {ioEx.Message}");
+					break;
 				}
 				catch (Exception ex)
 				{
 					System.Diagnostics.Debug.WriteLine($"Error reading from pipe: {ex.Message}");
 					_isConnected = false;
+					UpdateError?.Invoke(this, $"Connection error: {ex.Message}");
 					break;
 				}
 			}
@@ -165,19 +214,15 @@ namespace PictureDay.Services
 					string? status = response["status"]?.ToString();
 					if (status == "ready")
 					{
+						App.SetShuttingDownForUpdate(true);
 						System.Windows.Application.Current.Dispatcher.Invoke(() =>
 						{
-							var result = System.Windows.MessageBox.Show(
-								"Update downloaded. Click OK to apply the update and restart PictureDay.",
-								"Update Ready",
-								System.Windows.MessageBoxButton.OKCancel,
-								System.Windows.MessageBoxImage.Information);
-
-							if (result == System.Windows.MessageBoxResult.OK)
-							{
-								ApplyUpdate();
-							}
+							System.Windows.Application.Current.Shutdown();
 						});
+					}
+					else if (status == "waiting")
+					{
+						System.Diagnostics.Debug.WriteLine("Updater is preparing the update...");
 					}
 					break;
 			}
@@ -187,7 +232,7 @@ namespace PictureDay.Services
 		{
 			if (!_isConnected || _pipeClient == null || !_pipeClient.IsConnected)
 			{
-				UpdateError?.Invoke(this, "Not connected to updater");
+				UpdateError?.Invoke(this, "Not connected to updater. Please try again.");
 				return;
 			}
 
@@ -205,7 +250,8 @@ namespace PictureDay.Services
 			}
 			catch (Exception ex)
 			{
-				UpdateError?.Invoke(this, ex.Message);
+				_isConnected = false;
+				UpdateError?.Invoke(this, $"Failed to check for updates: {ex.Message}");
 			}
 		}
 
@@ -235,7 +281,7 @@ namespace PictureDay.Services
 			}
 		}
 
-		private void ApplyUpdate()
+		public void ApplyUpdate()
 		{
 			if (!_isConnected || _pipeClient == null || !_pipeClient.IsConnected)
 			{
@@ -255,11 +301,35 @@ namespace PictureDay.Services
 				_pipeClient.Write(data, 0, data.Length);
 				_pipeClient.Flush();
 
-				System.Windows.Application.Current.Shutdown();
+				App.SetShuttingDownForUpdate(true);
 			}
 			catch (Exception ex)
 			{
 				UpdateError?.Invoke(this, ex.Message);
+			}
+		}
+
+		public void KillUpdater()
+		{
+			try
+			{
+				Process[] processes = Process.GetProcessesByName("PictureDayUpdater");
+				foreach (Process process in processes)
+				{
+					try
+					{
+						process.Kill();
+						process.WaitForExit(1000);
+					}
+					catch (Exception ex)
+					{
+						System.Diagnostics.Debug.WriteLine($"Error killing updater process: {ex.Message}");
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"Error finding updater processes: {ex.Message}");
 			}
 		}
 
