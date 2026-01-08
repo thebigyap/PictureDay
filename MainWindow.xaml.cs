@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using PictureDay.Services;
@@ -123,6 +125,27 @@ namespace PictureDay
 			{
 				System.Windows.MessageBox.Show("Failed to capture screenshot.", "Error",
 					System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+			}
+		}
+
+		private void OpenPhotosButton_Click(object sender, RoutedEventArgs e)
+		{
+			if (_storageManager != null)
+			{
+				string photosDirectory = _storageManager.GetBaseDirectory();
+				if (Directory.Exists(photosDirectory))
+				{
+					Process.Start(new ProcessStartInfo
+					{
+						FileName = photosDirectory,
+						UseShellExecute = true
+					});
+				}
+				else
+				{
+					System.Windows.MessageBox.Show($"Photos directory not found: {photosDirectory}", "Error",
+						System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+				}
 			}
 		}
 	}

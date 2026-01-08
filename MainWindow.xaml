@@ -15,8 +15,12 @@
 		<RowDefinition Height="Auto"/>
 		<RowDefinition Height="*"/>
 	</Grid.RowDefinitions>
-	<Button x:Name="TakeScreenshotButton" Grid.Row="0" Content="Take Screenshot Now"
-		Padding="10,5" Margin="10" HorizontalAlignment="Left" Click="TakeScreenshotButton_Click"/>
+	<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
+		<Button x:Name="TakeScreenshotButton" Content="Take Screenshot Now"
+			Padding="10,5" Margin="0,0,10,0" Click="TakeScreenshotButton_Click"/>
+		<Button x:Name="OpenPhotosButton" Content="Open Photos"
+			Padding="10,5" Click="OpenPhotosButton_Click"/>
+	</StackPanel>
 	<TabControl x:Name="MainTabControl" Grid.Row="1" Background="{DynamicResource BackgroundBrush}">
 	<TabItem Header="Photo Gallery">
 	<views:PhotoGalleryView x:Name="PhotoGalleryViewControl"/>

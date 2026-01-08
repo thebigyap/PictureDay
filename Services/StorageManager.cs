@@ -141,6 +141,14 @@ namespace PictureDay.Services
 			}
 		}
 
+		private bool IsValidScreenshot(string filePath)
+		{
+			string ext = Path.GetExtension(filePath).ToLower();
+			string fileName = Path.GetFileName(filePath);
+			return (ext == ".jpg" || ext == ".png") &&
+				   !fileName.StartsWith("backup_", StringComparison.OrdinalIgnoreCase);
+		}
+
 		public List<ScreenshotMetadata> GetScreenshotsByDateRange(DateTime startDate, DateTime endDate)
 		{
 			List<ScreenshotMetadata> screenshots = new List<ScreenshotMetadata>();
@@ -154,12 +162,7 @@ namespace PictureDay.Services
 				if (Directory.Exists(monthDir))
 				{
 					var files = Directory.GetFiles(monthDir, "*.*")
-						.Where(f =>
-						{
-							string ext = Path.GetExtension(f).ToLower();
-							return (ext == ".jpg" || ext == ".png") &&
-								   !Path.GetFileName(f).StartsWith("backup_", StringComparison.OrdinalIgnoreCase);
-						})
+						.Where(IsValidScreenshot)
 						.Select(f => new FileInfo(f))
 						.Where(fi => fi.CreationTime >= startDate && fi.CreationTime <= endDate.AddDays(1))
 						.OrderByDescending(fi => fi.CreationTime);
@@ -185,6 +188,162 @@ namespace PictureDay.Services
 			DateTime startDate = new DateTime(year, month, 1);
 			DateTime endDate = startDate.AddMonths(1).AddDays(-1);
 			return GetScreenshotsByDateRange(startDate, endDate);
+		}
+
+		public List<ScreenshotMetadata> GetAllScreenshots()
+		{
+			List<ScreenshotMetadata> screenshots = new List<ScreenshotMetadata>();
+
+			if (!Directory.Exists(_baseDirectory))
+			{
+				return screenshots;
+			}
+
+			var monthDirs = Directory.GetDirectories(_baseDirectory)
+				.Where(d => System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(d), @"^\d{4}-\d{2}$"))
+				.OrderBy(d => d);
+
+			foreach (string monthDir in monthDirs)
+			{
+				var files = Directory.GetFiles(monthDir, "*.*")
+					.Where(IsValidScreenshot)
+					.Select(f => new FileInfo(f))
+					.OrderByDescending(fi => fi.CreationTime);
+
+				foreach (var file in files)
+				{
+					screenshots.Add(new ScreenshotMetadata
+					{
+						FilePath = file.FullName,
+						DateTaken = file.CreationTime,
+						FileName = file.Name
+					});
+				}
+			}
+
+			return screenshots;
+		}
+
+		public long GetTotalStorageUsed()
+		{
+			var allScreenshots = GetAllScreenshots();
+			long totalBytes = 0;
+
+			foreach (var screenshot in allScreenshots)
+			{
+				try
+				{
+					if (File.Exists(screenshot.FilePath))
+					{
+						var fileInfo = new FileInfo(screenshot.FilePath);
+						totalBytes += fileInfo.Length;
+					}
+				}
+				catch
+				{
+				}
+			}
+
+			return totalBytes;
+		}
+
+		public int GetLongestStreak()
+		{
+			var allScreenshots = GetAllScreenshots();
+			if (allScreenshots.Count == 0)
+			{
+				return 0;
+			}
+
+			var dates = allScreenshots
+				.Select(s => s.DateTaken.Date)
+				.Distinct()
+				.OrderBy(d => d)
+				.ToList();
+
+			if (dates.Count == 0)
+			{
+				return 0;
+			}
+
+			int longestStreak = 1;
+			int currentStreak = 1;
+
+			for (int i = 1; i < dates.Count; i++)
+			{
+				TimeSpan diff = dates[i] - dates[i - 1];
+				if (diff.Days == 1)
+				{
+					currentStreak++;
+					longestStreak = Math.Max(longestStreak, currentStreak);
+				}
+				else
+				{
+					currentStreak = 1;
+				}
+			}
+
+			return longestStreak;
+		}
+
+		public string GetBaseDirectory()
+		{
+			return _baseDirectory;
+		}
+
+		public (int minYear, int minMonth, int maxYear, int maxMonth) GetDateRange()
+		{
+			var allScreenshots = GetAllScreenshots();
+
+			if (allScreenshots.Count == 0)
+			{
+				DateTime now = DateTime.Now;
+				return (now.Year, now.Month, now.Year, now.Month);
+			}
+
+			var dates = allScreenshots
+				.Select(s => s.DateTaken)
+				.OrderBy(d => d)
+				.ToList();
+
+			DateTime minDate = dates.First();
+			DateTime maxDate = dates.Last();
+
+			return (minDate.Year, minDate.Month, maxDate.Year, maxDate.Month);
+		}
+
+		public (int minMonth, int maxMonth) GetMonthRangeForYear(int year)
+		{
+			var allScreenshots = GetAllScreenshots();
+			var yearScreenshots = allScreenshots
+				.Where(s => s.DateTaken.Year == year)
+				.ToList();
+
+			if (yearScreenshots.Count == 0)
+			{
+				DateTime now = DateTime.Now;
+				if (year == now.Year)
+				{
+					return (1, now.Month);
+				}
+				return (1, 12);
+			}
+
+			var months = yearScreenshots
+				.Select(s => s.DateTaken.Month)
+				.OrderBy(m => m)
+				.ToList();
+
+			int minMonth = months.First();
+			int maxMonth = months.Last();
+
+			DateTime now2 = DateTime.Now;
+			if (year == now2.Year)
+			{
+				maxMonth = Math.Min(maxMonth, now2.Month);
+			}
+
+			return (minMonth, maxMonth);
 		}
 	}
 }

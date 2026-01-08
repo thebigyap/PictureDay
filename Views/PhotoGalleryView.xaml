@@ -3,24 +3,69 @@
 			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:local="clr-namespace:PictureDay.Views"
 			 mc:Ignorable="d"
 			 d:DesignHeight="450" d:DesignWidth="800">
+	<UserControl.Resources>
+		<BooleanToVisibilityConverter x:Key="BoolToVis"/>
+		<local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+	</UserControl.Resources>
 	<Grid Background="{DynamicResource BackgroundBrush}">
 		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="*"/>
 		</Grid.RowDefinitions>
 
+		<!-- Stats Row -->
+		<StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,10,10,15">
+			<!-- Total Photos Box -->
+			<Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2"
+					Background="{DynamicResource BackgroundBrush}" CornerRadius="8"
+					Width="140" Height="100" Margin="5,0" Padding="10">
+				<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+					<TextBlock Text="Total Photos" FontSize="12" Foreground="{DynamicResource TextBrush}"
+							   HorizontalAlignment="Center" Margin="0,0,0,5" Opacity="0.8"/>
+					<TextBlock x:Name="TotalPhotosValue" Text="0" FontSize="24" FontWeight="Bold"
+							   Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center"/>
+				</StackPanel>
+			</Border>
+
+			<!-- Storage Used Box -->
+			<Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2"
+					Background="{DynamicResource BackgroundBrush}" CornerRadius="8"
+					Width="140" Height="100" Margin="5,0" Padding="10">
+				<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+					<TextBlock Text="Storage Used" FontSize="12" Foreground="{DynamicResource TextBrush}"
+							   HorizontalAlignment="Center" Margin="0,0,0,5" Opacity="0.8"/>
+					<TextBlock x:Name="StorageUsedValue" Text="0 B" FontSize="20" FontWeight="Bold"
+							   Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+				</StackPanel>
+			</Border>
+
+			<!-- Longest Streak Box -->
+			<Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2"
+					Background="{DynamicResource BackgroundBrush}" CornerRadius="8"
+					Width="140" Height="100" Margin="5,0" Padding="10">
+				<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+					<TextBlock Text="Longest Streak" FontSize="12" Foreground="{DynamicResource TextBrush}"
+							   HorizontalAlignment="Center" Margin="0,0,0,5" Opacity="0.8"/>
+					<TextBlock x:Name="LongestStreakValue" Text="0 days" FontSize="20" FontWeight="Bold"
+							   Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+				</StackPanel>
+			</Border>
+		</StackPanel>
+
 		<!-- Navigation Controls -->
-		<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10" HorizontalAlignment="Center">
+		<StackPanel Grid.Row="1" Orientation="Horizontal" Margin="10" HorizontalAlignment="Center">
 			<Button x:Name="PrevMonthButton" Content="&lt;" Padding="8,4" Margin="5,0" Click="PrevMonthButton_Click"/>
-			<ComboBox x:Name="MonthComboBox" MinWidth="120" Margin="5,0" SelectionChanged="MonthComboBox_SelectionChanged"/>
+			<ComboBox x:Name="MonthComboBox" MinWidth="120" Margin="5,0" SelectionChanged="MonthComboBox_SelectionChanged" DisplayMemberPath="MonthName"/>
 			<ComboBox x:Name="YearComboBox" MinWidth="80" Margin="5,0" SelectionChanged="YearComboBox_SelectionChanged"/>
 			<Button x:Name="NextMonthButton" Content="&gt;" Padding="8,4" Margin="5,0" Click="NextMonthButton_Click"/>
 		</StackPanel>
 
 		<!-- Photo Gallery -->
-		<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 			<ItemsControl x:Name="PhotosItemsControl" Margin="10">
 				<ItemsControl.ItemsPanel>
 					<ItemsPanelTemplate>
@@ -32,27 +77,38 @@
 						<Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="5" Padding="5" CornerRadius="3" Background="{DynamicResource BackgroundBrush}">
 							<StackPanel>
 								<Viewbox Width="250" Height="100" Stretch="Uniform">
-									<Image Source="{Binding ImageSource}"
-										   MouseLeftButtonDown="Image_MouseLeftButtonDown"
-										   MouseRightButtonDown="Image_MouseRightButtonDown"
-										   Cursor="Hand">
-										<Image.ContextMenu>
-											<ContextMenu>
-												<MenuItem Header="Open" Click="ContextMenu_Open_Click"/>
-												<MenuItem Header="Open in File Explorer" Click="ContextMenu_OpenInExplorer_Click"/>
-												<MenuItem Header="Copy Image" Click="ContextMenu_CopyImage_Click"/>
-												<MenuItem Header="Copy File Location" Click="ContextMenu_CopyPath_Click"/>
-												<Separator/>
-												<MenuItem Header="Delete" Click="ContextMenu_Delete_Click"/>
-											</ContextMenu>
-										</Image.ContextMenu>
-									</Image>
+									<Grid>
+										<Image Source="{Binding ImageSource}"
+											   MouseLeftButtonDown="Image_MouseLeftButtonDown"
+											   MouseRightButtonDown="Image_MouseRightButtonDown"
+											   Cursor="Hand"
+											   Visibility="{Binding IsNoPhotos, Converter={StaticResource InverseBoolToVis}}">
+											<Image.ContextMenu>
+												<ContextMenu>
+													<MenuItem Header="Open" Click="ContextMenu_Open_Click"/>
+													<MenuItem Header="Open in File Explorer" Click="ContextMenu_OpenInExplorer_Click"/>
+													<MenuItem Header="Copy Image" Click="ContextMenu_CopyImage_Click"/>
+													<MenuItem Header="Copy File Location" Click="ContextMenu_CopyPath_Click"/>
+													<Separator/>
+													<MenuItem Header="Delete" Click="ContextMenu_Delete_Click"/>
+												</ContextMenu>
+											</Image.ContextMenu>
+										</Image>
+										<TextBlock Text="{Binding Message}"
+												   FontSize="24"
+												   FontWeight="Bold"
+												   HorizontalAlignment="Center"
+												   VerticalAlignment="Center"
+												   Foreground="{DynamicResource TextBrush}"
+												   Visibility="{Binding IsNoPhotos, Converter={StaticResource BoolToVis}}"/>
+									</Grid>
 								</Viewbox>
 								<TextBlock Text="{Binding DateLabel}"
 										   HorizontalAlignment="Center"
 										   Margin="0,5,0,0"
 										   FontSize="12"
-										   Foreground="{DynamicResource TextBrush}"/>
+										   Foreground="{DynamicResource TextBrush}"
+										   Visibility="{Binding IsNoPhotos, Converter={StaticResource InverseBoolToVis}}"/>
 							</StackPanel>
 						</Border>
 					</DataTemplate>

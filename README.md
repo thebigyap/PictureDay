@@ -240,6 +240,16 @@ PictureDay/
 
 ## Version History
 
+### v2.3.0
+
+-   **Enhanced Photo Gallery**: Major improvements to the gallery experience
+-   **Dynamic Date Range**: Photo Gallery now automatically adjusts to show only months/years with photos
+-   **Smart Month Selection**: Month dropdown only displays valid months for the selected year (no future months or empty months)
+-   **Statistics Display**: Added eye-catching stats boxes showing Total Photos, Storage Used, and Longest Streak
+-   **Open Photos Button**: Quick access button to open the photos folder in File Explorer
+-   **No Photos Indicator**: Clear "No Photos" message displayed when viewing months with no screenshots
+-   Stats and gallery filtering now properly exclude backup and unofficial screenshots
+
 ### v2.2.0
 
 -   **Fixed Update System**: Completely overhauled the update mechanism for reliability

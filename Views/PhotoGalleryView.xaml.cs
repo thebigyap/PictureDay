@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using PictureDay.Models;
@@ -26,32 +27,91 @@ namespace PictureDay.Views
 		public PhotoGalleryView()
 		{
 			InitializeComponent();
-			InitializeDateControls();
 		}
 
 		public void Initialize(StorageManager storageManager)
 		{
 			_storageManager = storageManager;
-			_currentYear = DateTime.Now.Year;
-			_currentMonth = DateTime.Now.Month;
+			InitializeDateControls();
 			LoadPhotos();
 		}
 
 		private void InitializeDateControls()
 		{
-			for (int i = 1; i <= 12; i++)
+			if (_storageManager == null)
 			{
-				MonthComboBox.Items.Add(CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(i));
+				MonthComboBox.SelectedIndex = DateTime.Now.Month - 1;
+				YearComboBox.SelectedItem = DateTime.Now.Year;
+				return;
 			}
 
-			int currentYear = DateTime.Now.Year;
-			for (int i = currentYear - 5; i <= currentYear + 1; i++)
+			var (minYear, minMonth, maxYear, maxMonth) = _storageManager.GetDateRange();
+
+			YearComboBox.Items.Clear();
+			for (int year = minYear; year <= maxYear; year++)
 			{
-				YearComboBox.Items.Add(i);
+				YearComboBox.Items.Add(year);
 			}
 
-			MonthComboBox.SelectedIndex = DateTime.Now.Month - 1;
-			YearComboBox.SelectedItem = DateTime.Now.Year;
+			_currentYear = DateTime.Now.Year;
+			_currentMonth = DateTime.Now.Month;
+
+			if (_currentYear < minYear || _currentYear > maxYear)
+			{
+				_currentYear = maxYear;
+				_currentMonth = maxMonth;
+			}
+			else if (_currentYear == minYear && _currentMonth < minMonth)
+			{
+				_currentMonth = minMonth;
+			}
+			else if (_currentYear == maxYear && _currentMonth > maxMonth)
+			{
+				_currentMonth = maxMonth;
+			}
+
+			UpdateMonthComboBox();
+			YearComboBox.SelectedItem = _currentYear;
+		}
+
+		private void UpdateMonthComboBox()
+		{
+			if (_storageManager == null) return;
+
+			var (minMonth, maxMonth) = _storageManager.GetMonthRangeForYear(_currentYear);
+
+			MonthComboBox.Items.Clear();
+
+			for (int i = minMonth; i <= maxMonth; i++)
+			{
+				MonthComboBox.Items.Add(new { MonthNumber = i, MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(i) });
+			}
+
+			if (_currentMonth < minMonth || _currentMonth > maxMonth)
+			{
+				_currentMonth = minMonth;
+			}
+
+			int selectedIndex = -1;
+			for (int i = 0; i < MonthComboBox.Items.Count; i++)
+			{
+				var item = MonthComboBox.Items[i];
+				var monthNumberProperty = item.GetType().GetProperty("MonthNumber");
+				if (monthNumberProperty != null && (int)monthNumberProperty.GetValue(item)! == _currentMonth)
+				{
+					selectedIndex = i;
+					break;
+				}
+			}
+
+			if (selectedIndex >= 0)
+			{
+				MonthComboBox.SelectedIndex = selectedIndex;
+			}
+			else if (MonthComboBox.Items.Count > 0)
+			{
+				MonthComboBox.SelectedIndex = 0;
+			}
 		}
 
 		private void LoadPhotos()
@@ -64,24 +124,74 @@ namespace PictureDay.Views
 			{
 				List<ScreenshotMetadata> screenshots = _storageManager.GetScreenshotsByMonth(_currentYear, _currentMonth);
 
-				foreach (var screenshot in screenshots)
+				if (screenshots.Count == 0)
 				{
-					if (File.Exists(screenshot.FilePath))
+					var noPhotosItem = new
 					{
-						var item = new
+						IsNoPhotos = true,
+						Message = "No Photos"
+					};
+					PhotosItemsControl.Items.Add(noPhotosItem);
+				}
+				else
+				{
+					foreach (var screenshot in screenshots)
+					{
+						if (File.Exists(screenshot.FilePath))
 						{
-							ImageSource = LoadThumbnail(screenshot.FilePath),
-							FilePath = screenshot.FilePath,
-							DateLabel = screenshot.DateTaken.ToString("MM/dd/yyyy HH:mm")
-						};
-						PhotosItemsControl.Items.Add(item);
+							var item = new
+							{
+								ImageSource = LoadThumbnail(screenshot.FilePath),
+								FilePath = screenshot.FilePath,
+								DateLabel = screenshot.DateTaken.ToString("MM/dd/yyyy HH:mm"),
+								IsNoPhotos = false
+							};
+							PhotosItemsControl.Items.Add(item);
+						}
 					}
 				}
+
+				UpdateStats();
 			}
 			catch (Exception ex)
 			{
 				System.Diagnostics.Debug.WriteLine($"Error loading photos: {ex.Message}");
 			}
+		}
+
+		private void UpdateStats()
+		{
+			if (_storageManager == null) return;
+
+			try
+			{
+				var allScreenshots = _storageManager.GetAllScreenshots();
+				int totalPhotos = allScreenshots.Count;
+				TotalPhotosValue.Text = totalPhotos.ToString();
+
+				long totalBytes = _storageManager.GetTotalStorageUsed();
+				StorageUsedValue.Text = FormatBytes(totalBytes);
+
+				int longestStreak = _storageManager.GetLongestStreak();
+				LongestStreakValue.Text = $"{longestStreak} day{(longestStreak != 1 ? "s" : "")}";
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"Error updating stats: {ex.Message}");
+			}
+		}
+
+		private string FormatBytes(long bytes)
+		{
+			string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+			double len = bytes;
+			int order = 0;
+			while (len >= 1024 && order < sizes.Length - 1)
+			{
+				order++;
+				len = len / 1024;
+			}
+			return $"{len:0.##} {sizes[order]}";
 		}
 
 		private BitmapImage LoadThumbnail(string filePath)
@@ -121,34 +231,68 @@ namespace PictureDay.Views
 
 		private void PrevMonthButton_Click(object sender, RoutedEventArgs e)
 		{
+			if (_storageManager == null) return;
+
+			var (minYear, minMonth, maxYear, maxMonth) = _storageManager.GetDateRange();
+
 			_currentMonth--;
 			if (_currentMonth < 1)
 			{
 				_currentMonth = 12;
 				_currentYear--;
 			}
+
+			DateTime currentDate = new DateTime(_currentYear, _currentMonth, 1);
+			DateTime minDate = new DateTime(minYear, minMonth, 1);
+
+			if (currentDate < minDate)
+			{
+				_currentYear = minYear;
+				_currentMonth = minMonth;
+			}
+
+			UpdateMonthComboBox();
 			UpdateDateControls();
 			LoadPhotos();
 		}
 
 		private void NextMonthButton_Click(object sender, RoutedEventArgs e)
 		{
+			if (_storageManager == null) return;
+
+			var (minYear, minMonth, maxYear, maxMonth) = _storageManager.GetDateRange();
+
 			_currentMonth++;
 			if (_currentMonth > 12)
 			{
 				_currentMonth = 1;
 				_currentYear++;
 			}
+
+			DateTime currentDate = new DateTime(_currentYear, _currentMonth, 1);
+			DateTime maxDate = new DateTime(maxYear, maxMonth, 1);
+
+			if (currentDate > maxDate)
+			{
+				_currentYear = maxYear;
+				_currentMonth = maxMonth;
+			}
+
+			UpdateMonthComboBox();
 			UpdateDateControls();
 			LoadPhotos();
 		}
 
 		private void MonthComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
-			if (MonthComboBox.SelectedIndex >= 0)
+			if (MonthComboBox.SelectedItem != null)
 			{
-				_currentMonth = MonthComboBox.SelectedIndex + 1;
-				LoadPhotos();
+				var monthNumberProperty = MonthComboBox.SelectedItem.GetType().GetProperty("MonthNumber");
+				if (monthNumberProperty != null)
+				{
+					_currentMonth = (int)monthNumberProperty.GetValue(MonthComboBox.SelectedItem)!;
+					LoadPhotos();
+				}
 			}
 		}
 
@@ -157,6 +301,8 @@ namespace PictureDay.Views
 			if (YearComboBox.SelectedItem is int year)
 			{
 				_currentYear = year;
+				UpdateMonthComboBox();
+				MonthComboBox.SelectedIndex = _currentMonth - 1;
 				LoadPhotos();
 			}
 		}
@@ -764,6 +910,27 @@ namespace PictureDay.Views
 			};
 
 			imageWindow.Show();
+		}
+	}
+
+	public class InverseBooleanToVisibilityConverter : IValueConverter
+	{
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			if (value is bool boolValue)
+			{
+				return !boolValue ? Visibility.Visible : Visibility.Collapsed;
+			}
+			return Visibility.Visible;
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			if (value is Visibility visibility)
+			{
+				return visibility != Visibility.Visible;
+			}
+			return false;
 		}
 	}
 }
