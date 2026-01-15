@@ -20,14 +20,19 @@ namespace PictureDay.Services
 			_configManager = configManager;
 		}
 
-		public string? CaptureScreen(bool isBackup = false)
+		public string? CaptureScreen(bool isBackup = false, bool isQuarter = false)
 		{
+			DateTime now = DateTime.Now;
+			string photoType = isBackup ? "BACKUP" : (isQuarter ? "QUARTER" : "MAIN");
+			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ScreenshotService.CaptureScreen called - Type: {photoType}");
+
 			List<IntPtr> minimizedWindows = new List<IntPtr>();
 
 			try
 			{
 				if (_configManager != null && _configManager.Config.DesktopOnly)
 				{
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Minimizing windows for desktop-only capture...");
 					minimizedWindows = MinimizeAllWindows();
 					Thread.Sleep(500);
 					System.Windows.Forms.Application.DoEvents();
@@ -37,6 +42,7 @@ namespace PictureDay.Services
 
 				if (_configManager != null && _configManager.Config.CaptureAllMonitors)
 				{
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Capturing all monitors...");
 					bitmap = CaptureAllMonitors();
 				}
 				else
@@ -44,24 +50,40 @@ namespace PictureDay.Services
 					Screen? targetScreen = GetTargetScreen();
 					if (targetScreen == null)
 					{
+						Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR: Target screen is null");
 						RestoreWindows(minimizedWindows);
 						return null;
 					}
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Capturing single screen: {targetScreen.Bounds}");
 					bitmap = CaptureScreen(targetScreen);
 				}
 
 				if (bitmap == null)
 				{
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR: Bitmap is null after capture");
 					RestoreWindows(minimizedWindows);
 					return null;
 				}
 
-				string filePath = _storageManager.SaveScreenshot(bitmap, isBackup);
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Bitmap captured: {bitmap.Width}x{bitmap.Height}, saving...");
+				string filePath = _storageManager.SaveScreenshot(bitmap, isBackup, isQuarter);
 				RestoreWindows(minimizedWindows);
+
+				if (!string.IsNullOrEmpty(filePath))
+				{
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Screenshot saved to: {filePath}");
+				}
+				else
+				{
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR: SaveScreenshot returned null or empty path");
+				}
+
 				return filePath;
 			}
 			catch (Exception ex)
 			{
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR capturing screenshot: {ex.Message}");
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Stack trace: {ex.StackTrace}");
 				System.Diagnostics.Debug.WriteLine($"Error capturing screenshot: {ex.Message}");
 				RestoreWindows(minimizedWindows);
 				return null;

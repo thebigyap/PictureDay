@@ -11,7 +11,7 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.3.0";
+		public const string Version = "2.4.0";
 
 		private NotifyIcon? _notifyIcon;
 		private ConfigManager? _configManager;
@@ -79,6 +79,17 @@ namespace PictureDay
 					_privacyFilter,
 					_screenshotService,
 					_storageManager);
+				_dailyScheduler.PhotosProcessed += (s, e) =>
+				{
+					Application.Current.Dispatcher.Invoke(() =>
+					{
+						if (MainWindow is MainWindow mainWin)
+						{
+							mainWin.RefreshGallery();
+							DebugWriteLine("Photo gallery refreshed after midnight processing.");
+						}
+					});
+				};
 				_dailyScheduler.Start();
 				DebugWriteLine("DailyScheduler started.");
 				DebugWriteLine("Setting up system tray...");

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -175,80 +175,67 @@ namespace PictureDay.Views
 				return;
 			}
 
-		if (_configManager.Config.TodayScheduledTime.HasValue)
-		{
-			TimeSpan scheduledTime = _configManager.Config.TodayScheduledTime.Value;
-			DateTime now = DateTime.Now;
-			TimeSpan currentTime = now.TimeOfDay;
-
-			string timeString = FormatTimeSpan(scheduledTime);
-
-			bool hasPassed = HasScheduledTimePassedForDisplay(scheduledTime, currentTime);
-			if (hasPassed)
+			if (_configManager.Config.TodayScheduledTime.HasValue)
 			{
-				ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString} (already passed - will schedule for tomorrow)";
+				TimeSpan scheduledTime = _configManager.Config.TodayScheduledTime.Value;
+				string timeString = FormatTimeSpan(scheduledTime);
+
+				DateTime scheduledDate = _configManager.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
+				bool hasPassed = HasScheduledTimePassedForDisplay(scheduledTime);
+
+				string prefix = scheduledDate == DateTime.Today
+					? "Today's scheduled time"
+					: $"Scheduled time for {scheduledDate:yyyy-MM-dd}";
+
+				if (hasPassed)
+				{
+					ScheduledTimeTextBlock.Text = $"{prefix}: {timeString} (already passed - will schedule for tomorrow)";
+				}
+				else
+				{
+					ScheduledTimeTextBlock.Text = $"{prefix}: {timeString}";
+				}
 			}
-			else
-			{
-				ScheduledTimeTextBlock.Text = $"Today's scheduled time: {timeString}";
-			}
-		}
 			else
 			{
 				ScheduledTimeTextBlock.Text = "Today's scheduled time: Not set";
 			}
 		}
 
-	private string FormatTimeSpan(TimeSpan timeSpan)
-	{
-		int hours = timeSpan.Hours;
-		int minutes = timeSpan.Minutes;
-		string period = hours >= 12 ? "PM" : "AM";
-
-		if (hours == 0)
+		private string FormatTimeSpan(TimeSpan timeSpan)
 		{
-			hours = 12;
-		}
-		else if (hours > 12)
-		{
-			hours -= 12;
-		}
+			int totalHours = (int)timeSpan.TotalHours;
+			int hours = totalHours % 24;
+			int minutes = timeSpan.Minutes;
+			string period = hours >= 12 ? "PM" : "AM";
 
-		return $"{hours}:{minutes:D2} {period}";
-	}
-
-	private bool HasScheduledTimePassedForDisplay(TimeSpan scheduledTime, TimeSpan currentTime)
-	{
-		if (scheduledTime.TotalHours >= 24 || scheduledTime.TotalHours < 9)
-		{
-			TimeSpan normalizedScheduled = scheduledTime;
-			if (normalizedScheduled.TotalHours >= 24)
+			if (hours == 0)
 			{
-				normalizedScheduled = normalizedScheduled.Subtract(TimeSpan.FromDays(1));
+				hours = 12;
+			}
+			else if (hours > 12)
+			{
+				hours -= 12;
 			}
 
-		if (normalizedScheduled.TotalHours < 9)
+			return $"{hours}:{minutes:D2} {period}";
+		}
+
+		private bool HasScheduledTimePassedForDisplay(TimeSpan scheduledTime)
 		{
-			if (currentTime.TotalHours >= 21)
+			if (_configManager == null)
 			{
 				return false;
 			}
-			if (currentTime.TotalHours >= 9)
-			{
-				return true;
-			}
-			TimeSpan windowEnd = normalizedScheduled.Add(TimeSpan.FromMinutes(2.5));
-			return currentTime > windowEnd;
-		}
-		}
-		else
-		{
-			TimeSpan windowEnd = scheduledTime.Add(TimeSpan.FromMinutes(2.5));
-			return currentTime > windowEnd;
-		}
 
-		return false;
-	}
+			DateTime scheduledDate = _configManager.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
+			DateTime scheduledDateTime = scheduledDate + scheduledTime;
+
+			// Small grace window after the scheduled time before we consider it "passed"
+			DateTime windowEnd = scheduledDateTime.AddMinutes(2.5);
+
+			return DateTime.Now > windowEnd;
+		}
 
 		private void QualitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
 		{

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 <PropertyGroup>
 	<OutputType>WinExe</OutputType>
@@ -7,10 +7,19 @@
 	<ImplicitUsings>enable</ImplicitUsings>
 	<AssemblyName>PictureDayUpdater</AssemblyName>
 	<RootNamespace>PictureDayUpdater</RootNamespace>
+	<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 </PropertyGroup>
 
 <ItemGroup>
 	<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 </ItemGroup>
+
+<Target Name="StripUpdaterTargetFrameworkAttribute" AfterTargets="CoreCompile">
+	<WriteLinesToFile
+		File="$(IntermediateOutputPath).NETCoreApp,Version=v8.0.AssemblyAttributes.cs"
+		Lines="// TargetFrameworkAttribute removed to avoid duplicate attributes when WPF temporary projects compile updater sources."
+		Overwrite="true" />
+</Target>
 
 </Project>

@@ -1,9 +1,36 @@
 # Changelog
 
 All notable changes to PictureDay will be documented in this file.
+This file is maintained by AI.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.4.0] - 2026-01-15
+
+### Added
+
+-   **Quarter Checkpoint System**: For TimeRange scheduling mode, the system now automatically divides the selected time range into 4 equal checkpoints (e.g., 9:00-21:00 → checkpoints at 9:00, 12:00, 15:00, 18:00). Photos are taken at all checkpoints plus the main scheduled time, increasing the chance of capturing a photo even if you miss the main time
+-   **Day-by-Day Photo Management**: Photos are now processed day-by-day. All photos taken during the day (0:00-23:59) are candidates for "the photo of the day". At midnight (0:00 next day), the system automatically processes the previous day's photos to select the official photo
+-   **Photo Priority System**: Automatic photo selection at midnight with priority: MAIN (no prefix) > quarter* > backup*. If main photo exists, it becomes the official photo and all quarter/backup photos are deleted. If no main photo, randomly selects from quarter photos (or backup photos if no quarters)
+-   **Automatic Photo Promotion**: If main photo isn't captured, system automatically promotes a quarter or backup photo at midnight by removing the prefix and deleting all other candidates
+-   **Orphaned Photo Cleanup**: Automatic cleanup of orphaned quarter* and backup* photos that don't have a corresponding main photo for that day. Also processes unprocessed previous days on app startup
+-   **One Photo Per Day Guarantee**: System ensures exactly one photo per day (or zero if no photos were taken). No intraday photos - all photos are candidates until midnight processing
+
+### Changed
+
+-   **Timer Optimization**: Reduced timer frequency from 45 seconds to 60 seconds (once per minute) for better performance - sufficient for 5-minute photo windows
+-   **Time Display Fix**: Fixed time formatting in settings to correctly display scheduled times and properly detect when scheduled time has passed
+-   **Photo Processing**: All photos taken during the day are candidates; exactly one photo per day remains after midnight processing. Photos are not deleted during the day - all processing happens at midnight
+-   **Scheduling Logic**: Improved time range handling to ensure all photos for TODAY are between 00:00-23:59 (no wrap-around). Random time mode now picks from 0:00-23:59 instead of 9 AM - 3 AM
+-   **Random Time Range**: Changed from "9 AM - 3 AM (next day)" to "0:00 - 23:59" - picks any time in the day that hasn't passed yet
+
+### Fixed
+
+-   **Time Display Bug**: Fixed issue where settings showed incorrect scheduled time (e.g., 12:23 AM when photo was taken at 2:37 AM) - corrected time formatting and timezone handling
+-   **Schedule Display Date Alignment**: Updated scheduled time display in settings to use full DateTime (including `ScheduledTimeDate`) so "today's" time, "already passed" status, and logs all agree
+-   **Intraday Photo Issues**: Resolved issues with multiple photos per day - now ensures exactly one photo per day through midnight processing
+-   **PC Shutdown Scenario**: Fixed issue where quarter photos would be deleted as orphaned if PC was shut down before midnight. System now processes unprocessed previous days on app startup before cleanup
 
 ## [2.3.0] - 2026-01-07
 

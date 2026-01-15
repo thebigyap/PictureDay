@@ -14,7 +14,7 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 
 ![Photo Gallery with Statistics](https://i.imgur.com/ewDjZQt.png)
 
-_Photo Gallery showing the statistics display, dynamic date range, and enhanced navigation controls in PictureDay v2.3.0_
+_Photo Gallery showing the statistics display, dynamic date range, and enhanced navigation controls in PictureDay v2.4.0_
 
 ![Settings Menu](https://i.imgur.com/H1I912n.png)
 
@@ -31,7 +31,8 @@ _Example screenshot captured by PictureDay, demonstrating the application's dail
 -   **Automatic Daily Screenshots**: Captures one screenshot per day at a configurable time
 -   **Privacy Protection**: Blocks screenshots when blocked applications or private browsing modes are detected
 -   **Activity Monitoring**: Only captures screenshots when the user is active
--   **Backup Screenshots**: Takes backup screenshots if the scheduled time is missed
+-   **Quarter Checkpoint System**: For TimeRange mode, takes photos at 4 quarter checkpoints plus the main scheduled time
+-   **Intelligent Photo Selection**: Automatically selects the best photo for each day at midnight with priority: MAIN > quarter* > backup*
 -   **Monthly Organization**: Screenshots are automatically organized into monthly folders
 
 ### Manual Controls
@@ -42,10 +43,10 @@ _Example screenshot captured by PictureDay, demonstrating the application's dail
 
 ### Scheduling Options
 
--   **Random Time**: Automatically picks a random time between 9 AM and 3 AM (next day), with smart selection that ensures times are always in the future
--   **Intelligent Backup System**: For late-night times (9 PM - 3 AM), automatically schedules a backup screenshot during daytime hours (9 AM - 9 PM) to ensure you never miss a day
+-   **Random Time**: Automatically picks a random time from 0:00 to 23:59, ensuring the selected time hasn't passed yet
 -   **Fixed Time**: Set a specific time for daily screenshots
 -   **Time Range**: Random time within a custom range, with smart selection that respects current time
+-   **Quarter Checkpoints**: For TimeRange mode, automatically creates 4 quarter checkpoints within the range to increase chances of capturing a photo
 
 ### Screenshot Settings
 
@@ -125,8 +126,9 @@ Access settings via:
 
 -   Choose scheduling mode (Random, Fixed Time, or Time Range)
 -   Configure time settings based on selected mode
--   View today's scheduled screenshot time (displays in 12-hour format)
--   See notification if scheduled time has already passed
+-   View today's scheduled screenshot time (displays in 12-hour format, fully date-aware)
+-   See notification if today's scheduled time has already passed (will schedule for tomorrow), using the same date+time logic as the scheduler and logs
+-   **TimeRange Mode**: Automatically creates 4 quarter checkpoints within your selected range. Photos are taken at the main scheduled time and all quarter checkpoints during the day. At midnight, the system automatically selects the best photo (main photo if available, otherwise randomly selects from quarters)
 
 **Monitor Selection**
 
