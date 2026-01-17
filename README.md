@@ -1,4 +1,4 @@
-![App Icon](assets/pictureday_full.png)
+![App Icon](Assets/PictureDay_Full.png)
 # PictureDay
 
 A Windows desktop application that captures daily screenshots with privacy protection features. I made this because I've recently found some old pictures of my desktop from 4+ years ago and I thought it would be cool and interesting for anyone to be able to track how their computer changes over time.
