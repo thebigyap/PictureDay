@@ -15,12 +15,25 @@
 		<RowDefinition Height="Auto"/>
 		<RowDefinition Height="*"/>
 	</Grid.RowDefinitions>
-	<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
-		<Button x:Name="TakeScreenshotButton" Content="Take Screenshot Now"
-			Padding="10,5" Margin="0,0,10,0" Click="TakeScreenshotButton_Click"/>
-		<Button x:Name="OpenPhotosButton" Content="Open Photos"
-			Padding="10,5" Click="OpenPhotosButton_Click"/>
-	</StackPanel>
+	<Grid Grid.Row="0" Margin="10">
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="Auto"/>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="Auto"/>
+		</Grid.ColumnDefinitions>
+		<StackPanel Grid.Column="0" Orientation="Horizontal">
+			<Button x:Name="TakeScreenshotButton" Content="Take Screenshot Now"
+				Padding="10,5" Margin="0,0,10,0" Click="TakeScreenshotButton_Click"/>
+			<Button x:Name="OpenPhotosButton" Content="Open Photos"
+				Padding="10,5" Click="OpenPhotosButton_Click"/>
+		</StackPanel>
+		<Button x:Name="DonateButton" Grid.Column="2" Padding="10,5" Click="DonateButton_Click" Background="#FFD700">
+			<StackPanel Orientation="Horizontal">
+				<Image Source="pack://application:,,,/Assets/Coffee.png" Width="20" Height="20" Margin="0,0,5,0"/>
+				<TextBlock Text="Donate" Foreground="Black"/>
+			</StackPanel>
+		</Button>
+	</Grid>
 	<TabControl x:Name="MainTabControl" Grid.Row="1" Background="{DynamicResource BackgroundBrush}">
 	<TabItem Header="Photo Gallery">
 	<views:PhotoGalleryView x:Name="PhotoGalleryViewControl"/>

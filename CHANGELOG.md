@@ -6,6 +6,12 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - 2026-01-17
+
+### Added
+
+-   **Donate Button**: Added a Donate button with Buy Me a Coffee integration in the top right corner of the main window, opposite the "Take Screenshot" button. Features a yellow background with coffee icon for easy visibility
+
 ## [2.5.1] - 2026-01-17
 
 ### Fixed

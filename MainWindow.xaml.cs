@@ -148,5 +148,14 @@ namespace PictureDay
 				}
 			}
 		}
+
+		private void DonateButton_Click(object sender, RoutedEventArgs e)
+		{
+			Process.Start(new ProcessStartInfo
+			{
+				FileName = "https://buymeacoffee.com/bigyap",
+				UseShellExecute = true
+			});
+		}
 	}
 }

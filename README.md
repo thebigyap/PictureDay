@@ -37,6 +37,7 @@ _Example screenshot captured by PictureDay, demonstrating the application's dail
 -   **Manual Screenshot Trigger**: Take screenshots on-demand via button, system tray menu, or keyboard shortcuts (F12 or Ctrl+S)
 -   **System Tray Integration**: Runs in the background with system tray icon for quick access
 -   **Auto-Updates**: Automatically checks for updates on startup; manual check available via system tray menu
+-   **Donate Button**: Support the project via the Donate button in the top right corner of the main window
 
 ### Scheduling Options
 

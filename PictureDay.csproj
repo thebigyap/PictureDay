@@ -29,6 +29,7 @@
 <ItemGroup>
 	<Resource Include="Themes\LightTheme.xaml" />
 	<Resource Include="Themes\DarkTheme.xaml" />
+	<Resource Include="Assets\Coffee.png" />
 </ItemGroup>
 
 <PropertyGroup>
