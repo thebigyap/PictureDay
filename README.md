@@ -1,3 +1,4 @@
+![App Icon](assets/pictureday_full.png)
 # PictureDay
 
 A Windows desktop application that captures daily screenshots with privacy protection features. I made this because I've recently found some old pictures of my desktop from 4+ years ago and I thought it would be cool and interesting for anyone to be able to track how their computer changes over time.
@@ -8,11 +9,11 @@ PictureDay takes a screenshot of your screen once per day at a scheduled time. I
 
 ## Screenshots
 
-![Photo Gallery with Statistics](https://i.imgur.com/ewDjZQt.png)
+![Photo Gallery with Statistics](https://i.imgur.com/Jm0TOFf.png)
 
-_Photo Gallery showing the statistics display, dynamic date range, and enhanced navigation controls in PictureDay v2.4.0_
+_Photo Gallery showing the statistics display, dynamic date range, and enhanced navigation controls in PictureDay v2.5.1. NOTE: Images are blurred for privacy._
 
-![Settings Menu](https://i.imgur.com/H1I912n.png)
+![Settings Menu](https://i.imgur.com/AoCJetN.png)
 
 _Settings menu with comprehensive configuration options including privacy filters, screenshot scheduling, monitor selection, quality settings, and storage management_
 

@@ -174,6 +174,9 @@ namespace PictureDay.Views
 
 				int longestStreak = _storageManager.GetLongestStreak();
 				LongestStreakValue.Text = $"{longestStreak} day{(longestStreak != 1 ? "s" : "")}";
+
+				int currentStreak = _storageManager.GetCurrentStreak();
+				CurrentStreakValue.Text = $"{currentStreak} day{(currentStreak != 1 ? "s" : "")}";
 			}
 			catch (Exception ex)
 			{

@@ -54,6 +54,18 @@
 							   Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
 				</StackPanel>
 			</Border>
+
+			<!-- Current Streak Box -->
+			<Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2"
+					Background="{DynamicResource BackgroundBrush}" CornerRadius="8"
+					Width="140" Height="100" Margin="5,0" Padding="10">
+				<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+					<TextBlock Text="Current Streak" FontSize="12" Foreground="{DynamicResource TextBrush}"
+							   HorizontalAlignment="Center" Margin="0,0,0,5" Opacity="0.8"/>
+					<TextBlock x:Name="CurrentStreakValue" Text="0 days" FontSize="20" FontWeight="Bold"
+							   Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+				</StackPanel>
+			</Border>
 		</StackPanel>
 
 		<!-- Navigation Controls -->

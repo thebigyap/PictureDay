@@ -751,6 +751,53 @@ namespace PictureDay.Services
 			return longestStreak;
 		}
 
+		public int GetCurrentStreak()
+		{
+			var allScreenshots = GetAllScreenshots();
+			if (allScreenshots.Count == 0)
+			{
+				return 0;
+			}
+
+			var dates = allScreenshots
+				.Select(s => s.DateTaken.Date)
+				.Distinct()
+				.OrderByDescending(d => d)
+				.ToList();
+
+			if (dates.Count == 0)
+			{
+				return 0;
+			}
+
+			DateTime today = DateTime.Now.Date;
+			DateTime mostRecentDate = dates[0];
+
+			if (mostRecentDate < today.AddDays(-1))
+			{
+				return 0;
+			}
+
+			int currentStreak = 1;
+			DateTime currentDate = mostRecentDate;
+
+			for (int i = 1; i < dates.Count; i++)
+			{
+				TimeSpan diff = currentDate - dates[i];
+				if (diff.Days == 1)
+				{
+					currentStreak++;
+					currentDate = dates[i];
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			return currentStreak;
+		}
+
 		public string GetBaseDirectory()
 		{
 			return _baseDirectory;

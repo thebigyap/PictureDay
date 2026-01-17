@@ -6,6 +6,12 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-01-17
+
+### Fixed
+
+-   **Dark Theme Tab Styling**: Fixed issue where selected tabs in dark theme had white background with white text, making them unreadable. Selected tabs now have a dark gray background (#3D3D3D) with proper contrast, while unselected tabs use a darker background (#1E1E1E) for clear visual distinction
+
 ## [2.5.0] - 2026-01-17
 
 ### Added
