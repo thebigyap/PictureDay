@@ -6,6 +6,20 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-01-17
+
+### Added
+
+-   **Application Icon**: PictureDay now uses the camera icon (Camera.ico) as the executable icon, visible in File Explorer and taskbar
+-   **System Tray Icon**: System tray icon now displays the camera icon instead of the default application icon
+-   **Assets Folder Deployment**: Assets folder (containing icons) is now automatically copied to the output directory during build
+-   **Missed Schedule Recovery**: If the scheduled photo time has passed and no photo was taken, the app now automatically recalculates a new scheduled time for the rest of the day on startup
+
+### Changed
+
+-   **Build Process**: Added build target to copy Assets folder to output directory for runtime icon access
+-   **Code Analysis**: Suppressed CA1416 platform compatibility warnings (expected for Windows-only application)
+
 ## [2.4.0] - 2026-01-15
 
 ### Added

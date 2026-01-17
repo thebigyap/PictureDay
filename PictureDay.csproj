@@ -13,6 +13,8 @@
 	<EnableDefaultCompileItems>true</EnableDefaultCompileItems>
 	<EnableDefaultEmbeddedResourceItems>true</EnableDefaultEmbeddedResourceItems>
 	<DisableImplicitFrameworkReferences>false</DisableImplicitFrameworkReferences>
+	<ApplicationIcon>Assets\Camera.ico</ApplicationIcon>
+	<NoWarn>CA1416</NoWarn>
 </PropertyGroup>
 
 <ItemGroup>
@@ -38,6 +40,13 @@
 		<UpdaterFiles Include="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\$(TargetFramework)\PictureDayUpdater.*" />
 	</ItemGroup>
 	<Copy SourceFiles="@(UpdaterFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+</Target>
+
+<Target Name="CopyAssets" AfterTargets="Build">
+	<ItemGroup>
+		<AssetsFiles Include="$(MSBuildProjectDirectory)\Assets\**\*.*" />
+	</ItemGroup>
+	<Copy SourceFiles="@(AssetsFiles)" DestinationFolder="$(OutputPath)Assets\%(RecursiveDir)" SkipUnchangedFiles="true" />
 </Target>
 
 </Project>

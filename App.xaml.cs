@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -11,7 +12,7 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.4.0";
+		public const string Version = "2.5.0";
 
 		private NotifyIcon? _notifyIcon;
 		private ConfigManager? _configManager;
@@ -132,9 +133,22 @@ namespace PictureDay
 
 		private void SetupSystemTray()
 		{
+			Icon? trayIcon = null;
+			try
+			{
+				string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Camera.ico");
+				if (System.IO.File.Exists(iconPath))
+				{
+					trayIcon = new Icon(iconPath);
+				}
+			}
+			catch
+			{
+			}
+
 			_notifyIcon = new NotifyIcon
 			{
-				Icon = SystemIcons.Application,
+				Icon = trayIcon ?? SystemIcons.Application,
 				Visible = true,
 				Text = "PictureDay"
 			};

@@ -179,17 +179,47 @@ namespace PictureDay.Services
 		{
 			_scheduledTime = _configManager.Config.TodayScheduledTime.Value;
 			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Using existing scheduled time: {_scheduledTime:hh\\:mm\\:ss}");
-			if (_configManager.Config.ScheduleMode == ScheduleMode.TimeRange &&
-				_configManager.Config.ScheduleRangeStart.HasValue &&
-				_configManager.Config.ScheduleRangeEnd.HasValue)
+
+			bool scheduledTimePassed = HasScheduledTimePassed(now);
+			bool noMainPhoto = !photos.Any(p => p.IsMain);
+
+			if (scheduledTimePassed && noMainPhoto)
 			{
-				_quarterCheckpoints = CalculateQuarterCheckpoints(
-					_configManager.Config.ScheduleRangeStart.Value,
-					_configManager.Config.ScheduleRangeEnd.Value);
-				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Calculated {_quarterCheckpoints.Count} quarter checkpoints");
-				foreach (var cp in _quarterCheckpoints)
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Scheduled time ({_scheduledTime:hh\\:mm\\:ss}) has passed and no photo taken. Recalculating for rest of day...");
+				_scheduledTime = DetermineScheduledTime();
+				_configManager.Config.TodayScheduledTime = _scheduledTime;
+				_configManager.Config.ScheduledTimeDate = now.Date;
+				_configManager.SaveConfig();
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] New scheduled time set to: {_scheduledTime:hh\\:mm\\:ss}");
+
+				if (_configManager.Config.ScheduleMode == ScheduleMode.TimeRange &&
+					_configManager.Config.ScheduleRangeStart.HasValue &&
+					_configManager.Config.ScheduleRangeEnd.HasValue)
 				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   - Checkpoint: {cp:hh\\:mm\\:ss}");
+					_quarterCheckpoints = CalculateQuarterCheckpoints(
+						_configManager.Config.ScheduleRangeStart.Value,
+						_configManager.Config.ScheduleRangeEnd.Value);
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Calculated {_quarterCheckpoints.Count} quarter checkpoints");
+					foreach (var cp in _quarterCheckpoints)
+					{
+						Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   - Checkpoint: {cp:hh\\:mm\\:ss}");
+					}
+				}
+			}
+			else
+			{
+				if (_configManager.Config.ScheduleMode == ScheduleMode.TimeRange &&
+					_configManager.Config.ScheduleRangeStart.HasValue &&
+					_configManager.Config.ScheduleRangeEnd.HasValue)
+				{
+					_quarterCheckpoints = CalculateQuarterCheckpoints(
+						_configManager.Config.ScheduleRangeStart.Value,
+						_configManager.Config.ScheduleRangeEnd.Value);
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Calculated {_quarterCheckpoints.Count} quarter checkpoints");
+					foreach (var cp in _quarterCheckpoints)
+					{
+						Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   - Checkpoint: {cp:hh\\:mm\\:ss}");
+					}
 				}
 			}
 		}
@@ -350,6 +380,31 @@ namespace PictureDay.Services
 			}
 
 			return currentTime >= windowStart && currentTime <= windowEnd;
+		}
+
+		private bool HasScheduledTimePassed(DateTime now)
+		{
+			TimeSpan currentTime = now.TimeOfDay;
+			TimeSpan normalizedScheduled = _scheduledTime;
+
+			if (normalizedScheduled.TotalHours >= 24)
+			{
+				normalizedScheduled = normalizedScheduled.Subtract(TimeSpan.FromDays(1));
+			}
+			if (normalizedScheduled.TotalHours < 0)
+			{
+				normalizedScheduled = normalizedScheduled.Add(TimeSpan.FromDays(1));
+			}
+
+			TimeSpan windowEnd = normalizedScheduled.Add(TimeSpan.FromMinutes(ScheduledWindowMinutes / 2.0));
+
+			if (windowEnd.TotalHours >= 24)
+			{
+				windowEnd = windowEnd.Subtract(TimeSpan.FromDays(1));
+				return currentTime > windowEnd;
+			}
+
+			return currentTime > windowEnd;
 		}
 
 
