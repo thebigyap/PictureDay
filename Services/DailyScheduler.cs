@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32;
 using PictureDay.Models;
 using Timer = System.Threading.Timer;
 
@@ -24,6 +25,7 @@ namespace PictureDay.Services
 		private List<TimeSpan> _quarterCheckpoints = new List<TimeSpan>();
 		private DateTime _currentDayDate;
 		private Random _random = new Random();
+		private DateTime _lastTimerTick = DateTime.Now;
 
 		public event EventHandler? PhotosProcessed;
 
@@ -51,11 +53,14 @@ namespace PictureDay.Services
 
 		public void Start()
 		{
+			_lastTimerTick = DateTime.Now;
 			_monitoringTimer = new Timer(OnTimerTick, null, TimeSpan.Zero, TimeSpan.FromSeconds(MonitoringIntervalSeconds));
+			SystemEvents.PowerModeChanged += OnPowerModeChanged;
 		}
 
 		public void Stop()
 		{
+			SystemEvents.PowerModeChanged -= OnPowerModeChanged;
 			_monitoringTimer?.Dispose();
 			_monitoringTimer = null;
 		}
@@ -66,6 +71,14 @@ namespace PictureDay.Services
 			{
 				DateTime now = DateTime.Now;
 				TimeSpan currentTime = now.TimeOfDay;
+
+				TimeSpan timeSinceLastTick = now - _lastTimerTick;
+				if (timeSinceLastTick.TotalMinutes > MonitoringIntervalSeconds * 2 / 60.0)
+				{
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Large time gap detected ({timeSinceLastTick.TotalMinutes:F1} minutes) - possible sleep/resume. Checking if scheduled time was missed...");
+					CheckAndRescheduleIfMissed(now);
+				}
+				_lastTimerTick = now;
 
 				if (now.Date > _lastMidnightCheck)
 				{
@@ -497,6 +510,67 @@ namespace PictureDay.Services
 			}
 
 			return currentTime >= windowStart && currentTime <= windowEnd;
+		}
+
+		private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+		{
+			DateTime now = DateTime.Now;
+			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Power mode changed: {e.Mode}");
+
+			if (e.Mode == PowerModes.Resume)
+			{
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] System resumed from sleep/hibernate. Checking if scheduled time was missed...");
+				_lastTimerTick = now;
+				CheckAndRescheduleIfMissed(now);
+			}
+		}
+
+		private void CheckAndRescheduleIfMissed(DateTime now)
+		{
+			if (_dayCompleted)
+			{
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Skipping reschedule check - day already completed");
+				return;
+			}
+
+			var photos = _storageManager.GetPhotosForDate(now.Date);
+			bool hasMainPhoto = photos.Any(p => p.IsMain);
+
+			if (hasMainPhoto)
+			{
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Skipping reschedule check - main photo already exists");
+				return;
+			}
+
+			bool scheduledTimePassed = HasScheduledTimePassed(now);
+
+			if (scheduledTimePassed)
+			{
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Scheduled time ({_scheduledTime:hh\\:mm\\:ss}) has passed and no photo taken. Recalculating for rest of day...");
+				_scheduledTime = DetermineScheduledTime();
+				_configManager.Config.TodayScheduledTime = _scheduledTime;
+				_configManager.Config.ScheduledTimeDate = now.Date;
+				_configManager.SaveConfig();
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] New scheduled time set to: {_scheduledTime:hh\\:mm\\:ss}");
+
+				if (_configManager.Config.ScheduleMode == ScheduleMode.TimeRange &&
+					_configManager.Config.ScheduleRangeStart.HasValue &&
+					_configManager.Config.ScheduleRangeEnd.HasValue)
+				{
+					_quarterCheckpoints = CalculateQuarterCheckpoints(
+						_configManager.Config.ScheduleRangeStart.Value,
+						_configManager.Config.ScheduleRangeEnd.Value);
+					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Calculated {_quarterCheckpoints.Count} quarter checkpoints");
+					foreach (var cp in _quarterCheckpoints)
+					{
+						Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   - Checkpoint: {cp:hh\\:mm\\:ss}");
+					}
+				}
+			}
+			else
+			{
+				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Scheduled time ({_scheduledTime:hh\\:mm\\:ss}) has not yet passed. No reschedule needed.");
+			}
 		}
 
 	}

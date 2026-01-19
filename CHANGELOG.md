@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   **User Screenshot Protection**: Fixed issue where manually taken screenshots (via "Take Screenshot Now" button) could be deleted at midnight during daily photo processing. User-taken screenshots are now prefixed with "u_" and excluded from automatic processing, ensuring they are never deleted while still being visible in the photo gallery
 
+-   **Sleep/Resume Detection**: Fixed issue where scheduled photo times were missed when the computer went to sleep. The app now detects system resume events and automatically checks if the scheduled time was missed, recalculating a new scheduled time for the rest of the day if needed. Uses a hybrid approach with `SystemEvents.PowerModeChanged` for traditional sleep/hibernate and time gap detection as a fallback for Modern Standby systems
+
 ## [2.5.2] - 2026-01-17
 
 ### Added
