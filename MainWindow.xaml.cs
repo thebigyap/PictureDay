@@ -110,7 +110,7 @@ namespace PictureDay
 				return;
 			}
 
-			string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false);
+			string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false, isUser: true);
 			if (!string.IsNullOrEmpty(screenshotPath))
 			{
 				System.Windows.MessageBox.Show($"Screenshot saved: {screenshotPath}", "Success",

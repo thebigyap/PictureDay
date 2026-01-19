@@ -45,28 +45,32 @@ namespace PictureDay.Services
 			return fullPath;
 		}
 
-		public string GenerateFileName(DateTime dateTime, bool isBackup = false, bool isQuarter = false, string format = "JPEG")
+	public string GenerateFileName(DateTime dateTime, bool isBackup = false, bool isQuarter = false, bool isUser = false, string format = "JPEG")
+	{
+		string prefix = "";
+		if (isUser)
 		{
-			string prefix = "";
-			if (isQuarter)
-			{
-				prefix = "quarter_";
-			}
-			else if (isBackup)
-			{
-				prefix = "backup_";
-			}
-			string extension = format.ToUpper() == "PNG" ? "png" : "jpg";
-			return $"{prefix}{dateTime:yyyy-MM-dd_HH-mm-ss}.{extension}";
+			prefix = "u_";
 		}
-
-		public string SaveScreenshot(Bitmap bitmap, bool isBackup = false, bool isQuarter = false)
+		else if (isQuarter)
 		{
-			DateTime now = DateTime.Now;
-			string photoType = isBackup ? "BACKUP" : (isQuarter ? "QUARTER" : "MAIN");
-			string monthlyDir = GetMonthlyDirectory(now);
-			string fileName = GenerateFileName(now, isBackup, isQuarter, _imageFormat);
-			string fullPath = Path.Combine(monthlyDir, fileName);
+			prefix = "quarter_";
+		}
+		else if (isBackup)
+		{
+			prefix = "backup_";
+		}
+		string extension = format.ToUpper() == "PNG" ? "png" : "jpg";
+		return $"{prefix}{dateTime:yyyy-MM-dd_HH-mm-ss}.{extension}";
+	}
+
+	public string SaveScreenshot(Bitmap bitmap, bool isBackup = false, bool isQuarter = false, bool isUser = false)
+	{
+		DateTime now = DateTime.Now;
+		string photoType = isUser ? "USER" : (isBackup ? "BACKUP" : (isQuarter ? "QUARTER" : "MAIN"));
+		string monthlyDir = GetMonthlyDirectory(now);
+		string fileName = GenerateFileName(now, isBackup, isQuarter, isUser, _imageFormat);
+		string fullPath = Path.Combine(monthlyDir, fileName);
 
 			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] StorageManager.SaveScreenshot - Type: {photoType}");
 			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   Date: {now.Date:yyyy-MM-dd}, Time: {now:HH:mm:ss}");
@@ -283,29 +287,33 @@ namespace PictureDay.Services
 				bool matches = false;
 				string datePattern = $"{dateStr}_";
 
-				if (fileName.StartsWith("quarter_", StringComparison.OrdinalIgnoreCase))
+			if (fileName.StartsWith("u_", StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			else if (fileName.StartsWith("quarter_", StringComparison.OrdinalIgnoreCase))
+			{
+				if (fileName.Length >= 8 + datePattern.Length &&
+					fileName.Substring(8, datePattern.Length).Equals(datePattern, StringComparison.OrdinalIgnoreCase))
 				{
-					if (fileName.Length >= 8 + datePattern.Length &&
-						fileName.Substring(8, datePattern.Length).Equals(datePattern, StringComparison.OrdinalIgnoreCase))
-					{
-						matches = true;
-					}
+					matches = true;
 				}
-				else if (fileName.StartsWith("backup_", StringComparison.OrdinalIgnoreCase))
+			}
+			else if (fileName.StartsWith("backup_", StringComparison.OrdinalIgnoreCase))
+			{
+				if (fileName.Length >= 7 + datePattern.Length &&
+					fileName.Substring(7, datePattern.Length).Equals(datePattern, StringComparison.OrdinalIgnoreCase))
 				{
-					if (fileName.Length >= 7 + datePattern.Length &&
-						fileName.Substring(7, datePattern.Length).Equals(datePattern, StringComparison.OrdinalIgnoreCase))
-					{
-						matches = true;
-					}
+					matches = true;
 				}
-				else
+			}
+			else
+			{
+				if (fileName.StartsWith(datePattern, StringComparison.OrdinalIgnoreCase))
 				{
-					if (fileName.StartsWith(datePattern, StringComparison.OrdinalIgnoreCase))
-					{
-						matches = true;
-					}
+					matches = true;
 				}
+			}
 
 				if (matches)
 				{
@@ -520,19 +528,24 @@ namespace PictureDay.Services
 					var allFiles = Directory.EnumerateFiles(monthDir, "*.jpg")
 						.Concat(Directory.EnumerateFiles(monthDir, "*.png"));
 
-					foreach (string filePath in allFiles)
+				foreach (string filePath in allFiles)
+				{
+					string fileName = Path.GetFileName(filePath);
+					if (!fileName.Contains("_"))
 					{
-						string fileName = Path.GetFileName(filePath);
-						if (!fileName.Contains("_"))
-						{
-							continue;
-						}
+						continue;
+					}
 
-						try
-						{
-							int dateStartIndex = -1;
+					if (fileName.StartsWith("u_", StringComparison.OrdinalIgnoreCase))
+					{
+						continue;
+					}
 
-							if (fileName.StartsWith("quarter_", StringComparison.OrdinalIgnoreCase))
+					try
+					{
+						int dateStartIndex = -1;
+
+						if (fileName.StartsWith("quarter_", StringComparison.OrdinalIgnoreCase))
 							{
 								int firstUnderscore = fileName.IndexOf('_');
 								int secondUnderscore = fileName.IndexOf('_', firstUnderscore + 1);

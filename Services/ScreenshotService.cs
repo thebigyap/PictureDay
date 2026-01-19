@@ -20,11 +20,11 @@ namespace PictureDay.Services
 			_configManager = configManager;
 		}
 
-		public string? CaptureScreen(bool isBackup = false, bool isQuarter = false)
-		{
-			DateTime now = DateTime.Now;
-			string photoType = isBackup ? "BACKUP" : (isQuarter ? "QUARTER" : "MAIN");
-			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ScreenshotService.CaptureScreen called - Type: {photoType}");
+	public string? CaptureScreen(bool isBackup = false, bool isQuarter = false, bool isUser = false)
+	{
+		DateTime now = DateTime.Now;
+		string photoType = isUser ? "USER" : (isBackup ? "BACKUP" : (isQuarter ? "QUARTER" : "MAIN"));
+		Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ScreenshotService.CaptureScreen called - Type: {photoType}");
 
 			List<IntPtr> minimizedWindows = new List<IntPtr>();
 
@@ -65,9 +65,9 @@ namespace PictureDay.Services
 					return null;
 				}
 
-				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Bitmap captured: {bitmap.Width}x{bitmap.Height}, saving...");
-				string filePath = _storageManager.SaveScreenshot(bitmap, isBackup, isQuarter);
-				RestoreWindows(minimizedWindows);
+		Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Bitmap captured: {bitmap.Width}x{bitmap.Height}, saving...");
+		string filePath = _storageManager.SaveScreenshot(bitmap, isBackup, isQuarter, isUser);
+		RestoreWindows(minimizedWindows);
 
 				if (!string.IsNullOrEmpty(filePath))
 				{

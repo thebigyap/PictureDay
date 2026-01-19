@@ -12,7 +12,7 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.5.2";
+		public const string Version = "2.5.3";
 
 		private NotifyIcon? _notifyIcon;
 		private ConfigManager? _configManager;
@@ -210,7 +210,7 @@ namespace PictureDay
 				return;
 			}
 
-			string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false);
+			string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false, isUser: true);
 			if (!string.IsNullOrEmpty(screenshotPath))
 			{
 				_notifyIcon?.ShowBalloonTip(3000, "PictureDay",
