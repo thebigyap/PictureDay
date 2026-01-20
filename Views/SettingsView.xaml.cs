@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using PictureDay.Models;
 using PictureDay.Services;
@@ -20,6 +21,8 @@ namespace PictureDay.Views
 		private ConfigManager? _configManager;
 		private StorageManager? _storageManager;
 		private List<string> _tempBlockedApps = new List<string>();
+		private DispatcherTimer? _dayCheckTimer;
+		private DateTime? _lastCheckedDate;
 
 		public event EventHandler? SettingsSaved;
 
@@ -29,6 +32,13 @@ namespace PictureDay.Views
 		{
 			InitializeComponent();
 			_isInitialized = true;
+			SetupDayCheckTimer();
+			Unloaded += SettingsView_Unloaded;
+		}
+
+		private void SettingsView_Unloaded(object sender, RoutedEventArgs e)
+		{
+			_dayCheckTimer?.Stop();
 		}
 
 		public void Initialize(ConfigManager configManager)
@@ -36,6 +46,45 @@ namespace PictureDay.Views
 			_configManager = configManager;
 			_storageManager = (StorageManager?)System.Windows.Application.Current.Resources["StorageManager"];
 			LoadSettings();
+			_lastCheckedDate = _configManager?.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
+
+			var dailyScheduler = (DailyScheduler?)System.Windows.Application.Current.Resources["DailyScheduler"];
+			if (dailyScheduler != null)
+			{
+				dailyScheduler.PhotosProcessed += (s, e) =>
+				{
+					System.Windows.Application.Current.Dispatcher.Invoke(() =>
+					{
+						UpdateScheduledTimeDisplay();
+					});
+				};
+			}
+		}
+
+		private void SetupDayCheckTimer()
+		{
+			_dayCheckTimer = new DispatcherTimer
+			{
+				Interval = TimeSpan.FromMinutes(1)
+			};
+			_dayCheckTimer.Tick += DayCheckTimer_Tick;
+			_dayCheckTimer.Start();
+		}
+
+		private void DayCheckTimer_Tick(object? sender, EventArgs e)
+		{
+			if (_configManager == null)
+			{
+				return;
+			}
+
+			DateTime? scheduledDate = _configManager.Config.ScheduledTimeDate?.Date;
+
+			if (scheduledDate != _lastCheckedDate)
+			{
+				_lastCheckedDate = scheduledDate;
+				UpdateScheduledTimeDisplay();
+			}
 		}
 
 		private void LoadSettings()
