@@ -23,6 +23,7 @@ namespace PictureDay.Views
 		private List<string> _tempBlockedApps = new List<string>();
 		private DispatcherTimer? _dayCheckTimer;
 		private DateTime? _lastCheckedDate;
+		private TimeSpan? _lastCheckedScheduledTime;
 
 		public event EventHandler? SettingsSaved;
 
@@ -47,6 +48,7 @@ namespace PictureDay.Views
 			_storageManager = (StorageManager?)System.Windows.Application.Current.Resources["StorageManager"];
 			LoadSettings();
 			_lastCheckedDate = _configManager?.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
+			_lastCheckedScheduledTime = _configManager?.Config.TodayScheduledTime;
 
 			var dailyScheduler = (DailyScheduler?)System.Windows.Application.Current.Resources["DailyScheduler"];
 			if (dailyScheduler != null)
@@ -56,6 +58,18 @@ namespace PictureDay.Views
 					System.Windows.Application.Current.Dispatcher.Invoke(() =>
 					{
 						UpdateScheduledTimeDisplay();
+						_lastCheckedDate = _configManager?.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
+						_lastCheckedScheduledTime = _configManager?.Config.TodayScheduledTime;
+					});
+				};
+
+				dailyScheduler.ScheduledTimeChanged += (s, e) =>
+				{
+					System.Windows.Application.Current.Dispatcher.Invoke(() =>
+					{
+						UpdateScheduledTimeDisplay();
+						_lastCheckedDate = _configManager?.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
+						_lastCheckedScheduledTime = _configManager?.Config.TodayScheduledTime;
 					});
 				};
 			}
@@ -79,10 +93,12 @@ namespace PictureDay.Views
 			}
 
 			DateTime? scheduledDate = _configManager.Config.ScheduledTimeDate?.Date;
+			TimeSpan? scheduledTime = _configManager.Config.TodayScheduledTime;
 
-			if (scheduledDate != _lastCheckedDate)
+			if (scheduledDate != _lastCheckedDate || scheduledTime != _lastCheckedScheduledTime)
 			{
 				_lastCheckedDate = scheduledDate;
+				_lastCheckedScheduledTime = scheduledTime;
 				UpdateScheduledTimeDisplay();
 			}
 		}
@@ -142,6 +158,8 @@ namespace PictureDay.Views
 			LoadMonitorSettings();
 			DesktopOnlyCheckBox.IsChecked = _configManager.Config.DesktopOnly;
 			UpdateScheduledTimeDisplay();
+			_lastCheckedDate = _configManager.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
+			_lastCheckedScheduledTime = _configManager.Config.TodayScheduledTime;
 		}
 
 		private void LoadMonitorSettings()

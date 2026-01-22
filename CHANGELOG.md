@@ -6,7 +6,7 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.5.3] - 2026-01-19
+## [2.5.3] - 2026-01-22
 
 ### Fixed
 
@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   **Sleep/Resume Detection**: Fixed issue where scheduled photo times were missed when the computer went to sleep. The app now detects system resume events and automatically checks if the scheduled time was missed, recalculating a new scheduled time for the rest of the day if needed. Uses a hybrid approach with `SystemEvents.PowerModeChanged` for traditional sleep/hibernate and time gap detection as a fallback for Modern Standby systems
 
--   **Settings Page Scheduled Time Update**: Fixed issue where the scheduled time displayed on the settings page would not update when a new day started. The display now automatically refreshes when midnight passes, showing the new day's scheduled time even if the settings page was already open. Uses both event subscription to DailyScheduler and a periodic timer check for reliable updates
+-   **Settings Page Scheduled Time Update**: Fixed issue where the scheduled time displayed on the settings page would not update when a new day started or when the scheduled time was recalculated (e.g., after waking the PC when the scheduled time had already passed). Added new `ScheduledTimeChanged` event to `DailyScheduler` that fires immediately when the scheduled time is recalculated. The display now automatically refreshes when midnight passes or when the scheduled time changes, showing the updated scheduled time even if the settings page was already open. Uses event subscription for immediate updates plus a periodic timer check as a backup that monitors both date and time changes for reliable updates
 
 ## [2.5.2] - 2026-01-17
 

@@ -28,6 +28,7 @@ namespace PictureDay.Services
 		private DateTime _lastTimerTick = DateTime.Now;
 
 		public event EventHandler? PhotosProcessed;
+		public event EventHandler? ScheduledTimeChanged;
 
 		private const int MonitoringIntervalSeconds = 60;
 		private const int BackupDelaySeconds = 60;
@@ -187,6 +188,8 @@ namespace PictureDay.Services
 					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   - Checkpoint: {cp:hh\\:mm\\:ss}");
 				}
 			}
+
+			ScheduledTimeChanged?.Invoke(this, EventArgs.Empty);
 		}
 		else
 		{
@@ -218,6 +221,8 @@ namespace PictureDay.Services
 						Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   - Checkpoint: {cp:hh\\:mm\\:ss}");
 					}
 				}
+
+				ScheduledTimeChanged?.Invoke(this, EventArgs.Empty);
 			}
 			else
 			{
@@ -566,6 +571,8 @@ namespace PictureDay.Services
 						Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}]   - Checkpoint: {cp:hh\\:mm\\:ss}");
 					}
 				}
+
+				ScheduledTimeChanged?.Invoke(this, EventArgs.Empty);
 			}
 			else
 			{
