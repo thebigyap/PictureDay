@@ -6,6 +6,12 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.4] - 2026-01-23
+
+### Added
+
+-   **Notifications**: Added tray notifications for today's scheduled photo time on app startup (or "already taken") with a time of day greeting, confirmation when photos are captured, and a scheduled time update whenever the photo time is recalculated (rate-limited to 1/minute)
+
 ## [2.5.3] - 2026-01-22
 
 ### Fixed

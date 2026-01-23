@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -12,9 +12,10 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.5.3";
+		public const string Version = "2.5.4";
 
 		private NotifyIcon? _notifyIcon;
+		private NotificationService? _notificationService;
 		private ConfigManager? _configManager;
 		private DailyScheduler? _dailyScheduler;
 		private ScreenshotService? _screenshotService;
@@ -80,6 +81,16 @@ namespace PictureDay
 					_privacyFilter,
 					_screenshotService,
 					_storageManager);
+
+				DebugWriteLine("Setting up system tray...");
+				SetupSystemTray();
+				DebugWriteLine("System tray setup complete.");
+
+				if (_notifyIcon != null)
+				{
+					_notificationService = new NotificationService(_notifyIcon);
+				}
+
 				_dailyScheduler.PhotosProcessed += (s, e) =>
 				{
 					Application.Current.Dispatcher.Invoke(() =>
@@ -91,11 +102,43 @@ namespace PictureDay
 						}
 					});
 				};
+
+				_dailyScheduler.MainPhotoTaken += _ =>
+				{
+					Application.Current.Dispatcher.Invoke(() =>
+					{
+						_notificationService?.ShowMainPhotoTaken();
+					});
+				};
+
+				_dailyScheduler.ScheduledTimeChanged += (s, e) =>
+				{
+					Application.Current.Dispatcher.Invoke(() =>
+					{
+						_notificationService?.ShowScheduledMainPhotoTimeUpdated(_dailyScheduler.ScheduledTime);
+					});
+				};
+
 				_dailyScheduler.Start();
 				DebugWriteLine("DailyScheduler started.");
-				DebugWriteLine("Setting up system tray...");
-				SetupSystemTray();
-				DebugWriteLine("System tray setup complete.");
+
+				if (_notifyIcon != null)
+				{
+					if (_dailyScheduler.IsDayCompleted)
+					{
+						_notificationService?.ShowMainPhotoAlreadyTaken();
+					}
+					else if (_configManager.Config.TodayScheduledTime.HasValue &&
+					         _configManager.Config.ScheduledTimeDate?.Date == DateTime.Today)
+					{
+						_notificationService?.ShowScheduledMainPhotoTime(_configManager.Config.TodayScheduledTime.Value);
+					}
+					else
+					{
+						_notificationService?.ShowScheduledMainPhotoTime(_dailyScheduler.ScheduledTime);
+					}
+				}
+
 				if (MainWindow != null)
 				{
 					MainWindow.WindowState = WindowState.Minimized;

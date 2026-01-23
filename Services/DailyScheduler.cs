@@ -29,6 +29,10 @@ namespace PictureDay.Services
 
 		public event EventHandler? PhotosProcessed;
 		public event EventHandler? ScheduledTimeChanged;
+		public event Action<string>? MainPhotoTaken;
+
+		public bool IsDayCompleted => _dayCompleted;
+		public TimeSpan ScheduledTime => _scheduledTime;
 
 		private const int MonitoringIntervalSeconds = 60;
 		private const int BackupDelaySeconds = 60;
@@ -455,6 +459,8 @@ namespace PictureDay.Services
 
 				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Notifying UI to refresh gallery after MAIN photo processing...");
 				PhotosProcessed?.Invoke(this, EventArgs.Empty);
+
+				MainPhotoTaken?.Invoke(screenshotPath);
 			}
 			else
 			{
