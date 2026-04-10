@@ -663,8 +663,6 @@ namespace PictureDay.Views
 
 			System.Windows.Controls.Grid imageGrid = new System.Windows.Controls.Grid();
 			imageGrid.Children.Add(fullImage);
-			imageGrid.Children.Add(leftArrow);
-			imageGrid.Children.Add(rightArrow);
 
 			ScrollViewer scrollViewer = new ScrollViewer
 			{
@@ -673,6 +671,11 @@ namespace PictureDay.Views
 				Content = imageGrid,
 				Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
 			};
+
+			System.Windows.Controls.Grid viewerOverlay = new System.Windows.Controls.Grid();
+			viewerOverlay.Children.Add(scrollViewer);
+			viewerOverlay.Children.Add(leftArrow);
+			viewerOverlay.Children.Add(rightArrow);
 
 			Action updateCursor = () =>
 			{
@@ -871,10 +874,10 @@ namespace PictureDay.Views
 			mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
 
 			System.Windows.Controls.Grid.SetRow(topPanel, 0);
-			System.Windows.Controls.Grid.SetRow(scrollViewer, 1);
+			System.Windows.Controls.Grid.SetRow(viewerOverlay, 1);
 
 			mainGrid.Children.Add(topPanel);
-			mainGrid.Children.Add(scrollViewer);
+			mainGrid.Children.Add(viewerOverlay);
 
 			imageWindow.Content = mainGrid;
 			imageWindow.Owner = System.Windows.Application.Current.MainWindow;
