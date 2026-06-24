@@ -12,7 +12,7 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.5.4";
+		public const string Version = "2.6.0";
 
 		private NotifyIcon? _notifyIcon;
 		private NotificationService? _notificationService;

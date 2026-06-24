@@ -3,6 +3,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using PictureDay.Services;
 using PictureDay.Views;
 using Application = System.Windows.Application;
@@ -20,9 +23,53 @@ namespace PictureDay
 		{
 			InitializeComponent();
 			Title = $"PictureDay - Version: {App.Version}";
+			VersionText.Text = $"v{App.Version}";
 			Loaded += MainWindow_Loaded;
 			SettingsViewControl.SettingsSaved += SettingsViewControl_SettingsSaved;
+			SettingsViewControl.RequestNavigateHome += (s, e) => GalleryNav.IsChecked = true;
 			KeyDown += MainWindow_KeyDown;
+		}
+
+		private void GalleryNav_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+		{
+			// Intercept navigating away from Settings while there are unsaved changes
+			if (SettingsNav.IsChecked == true && SettingsViewControl.HasUnsavedChanges)
+			{
+				e.Handled = true; // block the nav until the user decides
+
+				MessageBoxResult choice = SettingsViewControl.PromptUnsavedChanges();
+				if (choice == MessageBoxResult.Yes)
+				{
+					// Save() navigates home + shows the toast on success (via SettingsSaved)
+					SettingsViewControl.SaveSettings();
+				}
+				else if (choice == MessageBoxResult.No)
+				{
+					SettingsViewControl.DiscardChanges();
+					GalleryNav.IsChecked = true;
+				}
+				// Cancel: stay on Settings
+			}
+		}
+
+		private void Chrome_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+		{
+			if (e.ButtonState == MouseButtonState.Pressed)
+			{
+				DragMove();
+			}
+		}
+
+		private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+		{
+			WindowState = WindowState.Minimized;
+		}
+
+		private void CloseButton_Click(object sender, RoutedEventArgs e)
+		{
+			// Match the close behavior: keep running in the tray
+			WindowState = WindowState.Minimized;
+			Hide();
 		}
 
 		private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -58,11 +105,42 @@ namespace PictureDay
 			{
 				PhotoGalleryViewControl.Initialize(_storageManager);
 			}
+
+			// Saving closes Settings and confirms with a toast
+			GalleryNav.IsChecked = true;
+			ShowToast("Settings saved");
+		}
+
+		private DispatcherTimer? _toastTimer;
+
+		public void ShowToast(string message)
+		{
+			ToastText.Text = message;
+			ToastHost.Visibility = Visibility.Visible;
+
+			var fadeIn = new DoubleAnimation(0, 1, new Duration(TimeSpan.FromMilliseconds(200)));
+			var slideUp = new DoubleAnimation(14, 0, new Duration(TimeSpan.FromMilliseconds(280)))
+			{
+				EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+			};
+			ToastHost.BeginAnimation(OpacityProperty, fadeIn);
+			ToastTransform.BeginAnimation(TranslateTransform.YProperty, slideUp);
+
+			_toastTimer?.Stop();
+			_toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2400) };
+			_toastTimer.Tick += (s, e) =>
+			{
+				_toastTimer!.Stop();
+				var fadeOut = new DoubleAnimation(1, 0, new Duration(TimeSpan.FromMilliseconds(320)));
+				fadeOut.Completed += (s2, e2) => ToastHost.Visibility = Visibility.Collapsed;
+				ToastHost.BeginAnimation(OpacityProperty, fadeOut);
+			};
+			_toastTimer.Start();
 		}
 
 		public void ShowSettingsTab()
 		{
-			MainTabControl.SelectedIndex = 1;
+			SettingsNav.IsChecked = true;
 		}
 
 		public void RefreshGallery()

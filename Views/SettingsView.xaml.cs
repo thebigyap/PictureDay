@@ -26,8 +26,22 @@ namespace PictureDay.Views
 		private TimeSpan? _lastCheckedScheduledTime;
 
 		public event EventHandler? SettingsSaved;
+		public event EventHandler? RequestNavigateHome;
 
 		private bool _isInitialized = false;
+		private bool _loading = false;
+		private bool _dirty = false;
+
+		/// <summary>True when the form has edits that have not been saved.</summary>
+		public bool HasUnsavedChanges => _dirty;
+
+		private void MarkDirty()
+		{
+			if (_isInitialized && !_loading)
+			{
+				_dirty = true;
+			}
+		}
 
 		public SettingsView()
 		{
@@ -35,6 +49,13 @@ namespace PictureDay.Views
 			_isInitialized = true;
 			SetupDayCheckTimer();
 			Unloaded += SettingsView_Unloaded;
+
+			// Track edits on controls that have no dedicated handler
+			StartWithWindowsCheckBox.Click += (s, e) => MarkDirty();
+			DirectoryTextBox.TextChanged += (s, e) => MarkDirty();
+			FixedTimeTextBox.TextChanged += (s, e) => MarkDirty();
+			RangeStartTimeTextBox.TextChanged += (s, e) => MarkDirty();
+			RangeEndTimeTextBox.TextChanged += (s, e) => MarkDirty();
 		}
 
 		private void SettingsView_Unloaded(object sender, RoutedEventArgs e)
@@ -104,6 +125,22 @@ namespace PictureDay.Views
 		}
 
 		private void LoadSettings()
+		{
+			if (_configManager == null) return;
+
+			_loading = true;
+			try
+			{
+				LoadSettingsCore();
+			}
+			finally
+			{
+				_loading = false;
+				_dirty = false;
+			}
+		}
+
+		private void LoadSettingsCore()
 		{
 			if (_configManager == null) return;
 
@@ -209,19 +246,23 @@ namespace PictureDay.Views
 			{
 				MonitorComboBox.IsEnabled = false;
 			}
+			MarkDirty();
 		}
 
 		private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
+			MarkDirty();
 		}
 
 		private void DesktopOnlyCheckBox_Changed(object sender, RoutedEventArgs e)
 		{
+			MarkDirty();
 		}
 
 		private void ScheduleModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
 			UpdateScheduleUI();
+			MarkDirty();
 		}
 
 		private void UpdateScheduleUI()
@@ -311,6 +352,7 @@ namespace PictureDay.Views
 				return;
 			}
 			QualityValueTextBlock.Text = ((int)e.NewValue).ToString();
+			MarkDirty();
 		}
 
 		private void FormatComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -320,6 +362,7 @@ namespace PictureDay.Views
 				return;
 			}
 			UpdateQualityUI();
+			MarkDirty();
 		}
 
 		private void UpdateQualityUI()
@@ -369,6 +412,7 @@ namespace PictureDay.Views
 				_tempBlockedApps.Add(appName);
 				RefreshBlockedAppsList();
 				NewAppTextBox.Clear();
+				MarkDirty();
 			}
 			else
 			{
@@ -383,6 +427,7 @@ namespace PictureDay.Views
 			{
 				_tempBlockedApps.Remove(selectedApp);
 				RefreshBlockedAppsList();
+				MarkDirty();
 			}
 		}
 
@@ -448,6 +493,7 @@ namespace PictureDay.Views
 					{
 						_tempBlockedApps.Add(selectedProcess);
 						RefreshBlockedAppsList();
+						MarkDirty();
 					}
 					processWindow.Close();
 				}
@@ -476,7 +522,16 @@ namespace PictureDay.Views
 
 		private void SaveButton_Click(object sender, RoutedEventArgs e)
 		{
-			if (_configManager == null) return;
+			SaveSettings();
+		}
+
+		/// <summary>
+		/// Persists the current form. Returns false (and leaves the user on Settings)
+		/// if validation fails. On success raises <see cref="SettingsSaved"/>.
+		/// </summary>
+		public bool SaveSettings()
+		{
+			if (_configManager == null) return false;
 
 			try
 			{
@@ -547,7 +602,7 @@ namespace PictureDay.Views
 						{
 							MessageBox.Show("Invalid fixed time format. Please use HH:mm format (e.g., 14:00).", "Invalid Input",
 								MessageBoxButton.OK, MessageBoxImage.Warning);
-							return;
+							return false;
 						}
 					}
 					else if (mode == "TimeRange")
@@ -560,7 +615,7 @@ namespace PictureDay.Views
 							{
 								MessageBox.Show("Start time must be before end time.", "Invalid Input",
 									MessageBoxButton.OK, MessageBoxImage.Warning);
-								return;
+								return false;
 							}
 							_configManager.Config.ScheduleRangeStart = startTime;
 							_configManager.Config.ScheduleRangeEnd = endTime;
@@ -569,7 +624,7 @@ namespace PictureDay.Views
 						{
 							MessageBox.Show("Invalid time range format. Please use HH:mm format (e.g., 09:00).", "Invalid Input",
 								MessageBoxButton.OK, MessageBoxImage.Warning);
-							return;
+							return false;
 						}
 					}
 				}
@@ -583,22 +638,38 @@ namespace PictureDay.Views
 
 				UpdateScheduledTimeDisplay();
 
+				_dirty = false;
 				SettingsSaved?.Invoke(this, EventArgs.Empty);
-
-				System.Windows.MessageBox.Show("Settings saved successfully!", "Settings",
-					System.Windows.MessageBoxButton.OK,
-					System.Windows.MessageBoxImage.Information);
+				return true;
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show($"Error saving settings: {ex.Message}", "Error",
 					MessageBoxButton.OK, MessageBoxImage.Error);
+				return false;
 			}
+		}
+
+		/// <summary>Reverts the form to the last saved configuration (including theme).</summary>
+		public void DiscardChanges()
+		{
+			LoadSettings();
+		}
+
+		/// <summary>Asks the user whether to save before leaving Settings.</summary>
+		public MessageBoxResult PromptUnsavedChanges()
+		{
+			return MessageBox.Show(
+				"You have unsaved changes. Do you want to save them before leaving?",
+				"Unsaved Changes",
+				MessageBoxButton.YesNoCancel,
+				MessageBoxImage.Warning);
 		}
 
 		private void CancelButton_Click(object sender, RoutedEventArgs e)
 		{
-			LoadSettings();
+			DiscardChanges();
+			RequestNavigateHome?.Invoke(this, EventArgs.Empty);
 		}
 
 		private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -610,6 +681,7 @@ namespace PictureDay.Views
 				string? theme = themeItem.Tag?.ToString() ?? "Light";
 				// Only apply theme visually, don't save yet - wait for Save button
 				ApplyTheme(theme);
+				MarkDirty();
 			}
 		}
 
