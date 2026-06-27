@@ -28,9 +28,11 @@
 </ItemGroup>
 
 <ItemGroup>
+	<Resource Include="Themes\Controls.xaml" />
 	<Resource Include="Themes\LightTheme.xaml" />
 	<Resource Include="Themes\DarkTheme.xaml" />
 	<Resource Include="Assets\Coffee.png" />
+	<Resource Include="Assets\PictureDay_NoText.png" />
 </ItemGroup>
 
 <PropertyGroup>
