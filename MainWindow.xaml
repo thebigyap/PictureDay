@@ -67,15 +67,32 @@
 								HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
 								Click="OpenPhotosButton_Click" Content="Open Photos Folder"/>
 						<Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="6,10"/>
-						<Button x:Name="DonateButton" Style="{StaticResource GhostButton}"
-								HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-								Click="DonateButton_Click">
-							<StackPanel Orientation="Horizontal">
-								<Image Source="pack://application:,,,/Assets/Coffee.png" Width="18" Height="18" Margin="0,0,9,0"/>
-								<TextBlock Text="Buy me a coffee" VerticalAlignment="Center"
-										   Foreground="{DynamicResource TextSecondaryBrush}"/>
-							</StackPanel>
-						</Button>
+						<Grid>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="*"/>
+								<ColumnDefinition Width="*"/>
+							</Grid.ColumnDefinitions>
+							<Button x:Name="PatreonButton" Grid.Column="0" Style="{StaticResource PatreonGhostButton}"
+									HorizontalContentAlignment="Left" Padding="8,7" Margin="0,0,4,0"
+									Click="PatreonButton_Click">
+								<StackPanel Orientation="Horizontal">
+									<Path Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0"
+										  Fill="#FF424D"
+										  Data="M0 .48v23.04h4.22V.48zm15.385 0c-4.764 0-8.641 3.881-8.641 8.65 0 4.755 3.877 8.65 8.641 8.65 4.75 0 8.615-3.895 8.615-8.65 0-4.769-3.865-8.65-8.615-8.65z"/>
+									<TextBlock Text="Patreon" VerticalAlignment="Center"
+											   Foreground="{DynamicResource TextSecondaryBrush}"/>
+								</StackPanel>
+							</Button>
+							<Button x:Name="DonateButton" Grid.Column="1" Style="{StaticResource GhostButton}"
+									HorizontalContentAlignment="Left" Padding="8,7" Margin="4,0,0,0"
+									Click="DonateButton_Click">
+								<StackPanel Orientation="Horizontal">
+									<Image Source="pack://application:,,,/Assets/Coffee.png" Width="16" Height="16" Margin="0,0,6,0"/>
+									<TextBlock Text="Coffee" VerticalAlignment="Center"
+											   Foreground="{DynamicResource TextSecondaryBrush}"/>
+								</StackPanel>
+							</Button>
+						</Grid>
 					</StackPanel>
 
 					<!-- Navigation -->

@@ -6,6 +6,19 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-06-26
+
+### Added
+
+- **Patreon Button**: Added a Patreon button to the left of the "Buy me a coffee" button, opening patreon.com/bigyap. Hover/pressed states are tinted with Patreon's brand coral, mirroring the existing Coffee button's hover behavior
+- **Toast Notifications**: Added an in-app toast (e.g. "Saved") that slides in from the bottom of the window to confirm actions like saving settings
+- **Unsaved Changes Guard**: Settings now tracks unsaved edits and prompts to save, discard, or cancel when navigating away from the Settings page with pending changes
+
+### Changed
+
+- **Custom Controls Theme**: Overhauled buttons, tabs, combo boxes, and other controls with a new shared `Controls.xaml` style resource, replacing styles previously duplicated across the Light/Dark theme files
+- **Restyled Views**: Updated Gallery, Settings, and Update windows to use the new control styles for a more consistent look
+
 ## [2.5.5] - 2026-04-10
 
 ### Fixed

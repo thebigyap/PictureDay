@@ -152,6 +152,42 @@
 		</Setter>
 	</Style>
 
+	<!-- Quiet / ghost button (no fill until hover), tinted with Patreon coral on hover -->
+	<Style x:Key="PatreonGhostButton" TargetType="Button">
+		<Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
+		<Setter Property="FontSize" Value="13"/>
+		<Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="Padding" Value="12,7"/>
+		<Setter Property="Cursor" Value="Hand"/>
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="Button">
+					<Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8">
+						<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}">
+							<ContentPresenter.Resources>
+								<Style TargetType="TextBlock">
+									<Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+								</Style>
+							</ContentPresenter.Resources>
+						</ContentPresenter>
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger Property="IsMouseOver" Value="True">
+							<Setter TargetName="Bd" Property="Background" Value="#1AFF424D"/>
+						</Trigger>
+						<Trigger Property="IsPressed" Value="True">
+							<Setter TargetName="Bd" Property="Background" Value="#2EFF424D"/>
+						</Trigger>
+						<Trigger Property="IsEnabled" Value="False">
+							<Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
 	<!-- Quiet / ghost button (no fill until hover) -->
 	<Style x:Key="GhostButton" TargetType="Button">
 		<Setter Property="FontFamily" Value="{StaticResource AppFont}"/>

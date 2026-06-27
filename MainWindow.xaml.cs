@@ -235,5 +235,14 @@ namespace PictureDay
 				UseShellExecute = true
 			});
 		}
+
+		private void PatreonButton_Click(object sender, RoutedEventArgs e)
+		{
+			Process.Start(new ProcessStartInfo
+			{
+				FileName = "https://patreon.com/bigyap",
+				UseShellExecute = true
+			});
+		}
 	}
 }
