@@ -6,6 +6,20 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-08-21
+
+### Added
+
+- **Photo Activity Heatmap**: Added a GitHub-style contribution grid to the Gallery, below the stat cards. It covers a fixed, rolling 53-week window (not configurable) with month and weekday labels, a Less/More legend, a running "photos in the last year" count, and a per-day tooltip. Cell intensity reflects how many photos were taken that day
+
+### Fixed
+
+- **Storage Used stat**: The size unit (B/KB/MB/GB/TB) is no longer trimmed off the end of the card. The number and its unit now render at different sizes on a shared baseline, and the value is rounded to one decimal place instead of two
+
+### Changed
+
+- **Streak stats**: The Longest and Current Streak cards render the number and "days" at different sizes, matching the new Storage Used layout
+
 ## [2.6.0] - 2026-06-26
 
 ### Added

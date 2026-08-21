@@ -45,7 +45,7 @@
 						<StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
 							<TextBlock Text="PictureDay" FontSize="16" FontWeight="SemiBold"
 									   Foreground="{DynamicResource TextBrush}"/>
-							<TextBlock x:Name="VersionText" Text="v2.5.4" FontSize="11"
+							<TextBlock x:Name="VersionText" Text="v2.6.1" FontSize="11"
 									   Foreground="{DynamicResource TextSecondaryBrush}"/>
 						</StackPanel>
 					</StackPanel>
