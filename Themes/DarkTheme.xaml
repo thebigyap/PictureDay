@@ -33,6 +33,13 @@
 	<SolidColorBrush x:Key="AccentPressedBrush" Color="#0070E0"/>
 	<SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF"/>
 
+	<!-- Heatmap (photo activity) -->
+	<SolidColorBrush x:Key="HeatmapLevel0Brush" Color="#3A3A3C"/>
+	<SolidColorBrush x:Key="HeatmapLevel1Brush" Color="#1E4F82"/>
+	<SolidColorBrush x:Key="HeatmapLevel2Brush" Color="#1861AB"/>
+	<SolidColorBrush x:Key="HeatmapLevel3Brush" Color="#1172D5"/>
+	<SolidColorBrush x:Key="HeatmapLevel4Brush" Color="#0A84FF"/>
+
 	<!-- Scrollbar -->
 	<SolidColorBrush x:Key="ScrollThumbBrush" Color="#48484A"/>
 	<SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="#636366"/>

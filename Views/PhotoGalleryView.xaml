@@ -19,6 +19,15 @@
 			<Setter Property="Padding" Value="18,16"/>
 		</Style>
 
+		<!-- Heatmap legend swatch -->
+		<Style x:Key="HeatmapLegendSwatch" TargetType="Border">
+			<Setter Property="Width" Value="10"/>
+			<Setter Property="Height" Value="10"/>
+			<Setter Property="CornerRadius" Value="2"/>
+			<Setter Property="Margin" Value="4,0,0,0"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+		</Style>
+
 		<!-- Gallery thumbnail card with hover lift -->
 		<Style x:Key="GalleryCard" TargetType="Border">
 			<Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
@@ -43,6 +52,7 @@
 
 	<Grid Background="Transparent">
 		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="*"/>
@@ -79,38 +89,67 @@
 			<Border Grid.Column="0" Style="{StaticResource StatCard}" Margin="0,0,6,0">
 				<StackPanel>
 					<TextBlock Text="TOTAL PHOTOS" Style="{StaticResource SectionHeaderText}"/>
-					<TextBlock x:Name="TotalPhotosValue" Text="0" FontSize="30" FontWeight="Bold"
-							   Foreground="{DynamicResource AccentBrush}" Margin="0,6,0,0"/>
+					<TextBlock FontSize="30" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"
+							   Margin="0,6,0,0" TextTrimming="CharacterEllipsis">
+						<Run x:Name="TotalPhotosValue" Text="0"/></TextBlock>
 				</StackPanel>
 			</Border>
 
 			<Border Grid.Column="1" Style="{StaticResource StatCard}" Margin="6,0,6,0">
 				<StackPanel>
 					<TextBlock Text="STORAGE USED" Style="{StaticResource SectionHeaderText}"/>
-					<TextBlock x:Name="StorageUsedValue" Text="0 B" FontSize="30" FontWeight="Bold"
-							   Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
+					<TextBlock FontSize="30" FontWeight="Bold" Foreground="{DynamicResource TextBrush}"
+							   Margin="0,6,0,0" TextTrimming="CharacterEllipsis">
+						<Run x:Name="StorageUsedValue" Text="0"/><Run x:Name="StorageUsedUnit" Text=" B" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/></TextBlock>
 				</StackPanel>
 			</Border>
 
 			<Border Grid.Column="2" Style="{StaticResource StatCard}" Margin="6,0,6,0">
 				<StackPanel>
 					<TextBlock Text="LONGEST STREAK" Style="{StaticResource SectionHeaderText}"/>
-					<TextBlock x:Name="LongestStreakValue" Text="0 days" FontSize="30" FontWeight="Bold"
-							   Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
+					<TextBlock FontSize="30" FontWeight="Bold" Foreground="{DynamicResource TextBrush}"
+							   Margin="0,6,0,0" TextTrimming="CharacterEllipsis">
+						<Run x:Name="LongestStreakValue" Text="0"/><Run x:Name="LongestStreakUnit" Text=" days" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/></TextBlock>
 				</StackPanel>
 			</Border>
 
 			<Border Grid.Column="3" Style="{StaticResource StatCard}" Margin="6,0,0,0">
 				<StackPanel>
 					<TextBlock Text="CURRENT STREAK" Style="{StaticResource SectionHeaderText}"/>
-					<TextBlock x:Name="CurrentStreakValue" Text="0 days" FontSize="30" FontWeight="Bold"
-							   Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
+					<TextBlock FontSize="30" FontWeight="Bold" Foreground="{DynamicResource TextBrush}"
+							   Margin="0,6,0,0" TextTrimming="CharacterEllipsis">
+						<Run x:Name="CurrentStreakValue" Text="0"/><Run x:Name="CurrentStreakUnit" Text=" days" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/></TextBlock>
 				</StackPanel>
 			</Border>
 		</Grid>
 
+		<!-- Photo activity heatmap: a fixed, rolling 53-week window -->
+		<Border Grid.Row="2" Style="{StaticResource StatCard}" Padding="16,13" Margin="28,12,28,4">
+			<StackPanel>
+				<Grid>
+					<TextBlock Text="PHOTO ACTIVITY" Style="{StaticResource SectionHeaderText}"
+							   VerticalAlignment="Center"/>
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+						<TextBlock x:Name="HeatmapSummaryText" Text="" Style="{StaticResource CaptionText}"
+								   VerticalAlignment="Center" Margin="0,0,14,0"/>
+						<TextBlock Text="Less" Style="{StaticResource CaptionText}" VerticalAlignment="Center"/>
+						<Border Style="{StaticResource HeatmapLegendSwatch}" Background="{DynamicResource HeatmapLevel0Brush}"/>
+						<Border Style="{StaticResource HeatmapLegendSwatch}" Background="{DynamicResource HeatmapLevel1Brush}"/>
+						<Border Style="{StaticResource HeatmapLegendSwatch}" Background="{DynamicResource HeatmapLevel2Brush}"/>
+						<Border Style="{StaticResource HeatmapLegendSwatch}" Background="{DynamicResource HeatmapLevel3Brush}"/>
+						<Border Style="{StaticResource HeatmapLegendSwatch}" Background="{DynamicResource HeatmapLevel4Brush}"/>
+						<TextBlock Text="More" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+					</StackPanel>
+				</Grid>
+				<!-- Shrinks to fit a narrow window, never grows past its natural size -->
+				<Viewbox HorizontalAlignment="Left" Stretch="Uniform" StretchDirection="DownOnly" Margin="0,9,0,0">
+					<Canvas x:Name="HeatmapCanvas"/>
+				</Viewbox>
+			</StackPanel>
+		</Border>
+
 		<!-- Photo grid -->
-		<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+		<ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
 					  Padding="20,8,20,16">
 			<ItemsControl x:Name="PhotosItemsControl">
 				<ItemsControl.ItemsPanel>

@@ -170,13 +170,19 @@ namespace PictureDay.Views
 				TotalPhotosValue.Text = totalPhotos.ToString();
 
 				long totalBytes = _storageManager.GetTotalStorageUsed();
-				StorageUsedValue.Text = FormatBytes(totalBytes);
+				var (storageValue, storageUnit) = FormatBytes(totalBytes);
+				StorageUsedValue.Text = storageValue;
+				StorageUsedUnit.Text = " " + storageUnit;
 
 				int longestStreak = _storageManager.GetLongestStreak();
-				LongestStreakValue.Text = $"{longestStreak} day{(longestStreak != 1 ? "s" : "")}";
+				LongestStreakValue.Text = longestStreak.ToString();
+				LongestStreakUnit.Text = longestStreak == 1 ? " day" : " days";
 
 				int currentStreak = _storageManager.GetCurrentStreak();
-				CurrentStreakValue.Text = $"{currentStreak} day{(currentStreak != 1 ? "s" : "")}";
+				CurrentStreakValue.Text = currentStreak.ToString();
+				CurrentStreakUnit.Text = currentStreak == 1 ? " day" : " days";
+
+				BuildHeatmap(allScreenshots);
 			}
 			catch (Exception ex)
 			{
@@ -184,7 +190,9 @@ namespace PictureDay.Views
 			}
 		}
 
-		private string FormatBytes(long bytes)
+		// The unit is returned separately so it can be rendered smaller than the
+		// number; at full size it used to overflow the card and get trimmed away.
+		private (string Value, string Unit) FormatBytes(long bytes)
 		{
 			string[] sizes = { "B", "KB", "MB", "GB", "TB" };
 			double len = bytes;
@@ -194,8 +202,128 @@ namespace PictureDay.Views
 				order++;
 				len = len / 1024;
 			}
-			return $"{len:0.##} {sizes[order]}";
+			string format = (order == 0 || len >= 100) ? "0" : "0.#";
+			return (len.ToString(format, CultureInfo.CurrentCulture), sizes[order]);
 		}
+
+		#region Photo activity heatmap
+
+		private const int HeatmapWeeks = 53;
+		private const double HeatmapCellSize = 10;
+		private const double HeatmapCellGap = 3;
+		private const double HeatmapColumnPitch = HeatmapCellSize + HeatmapCellGap;
+		private const double HeatmapDayLabelWidth = 26;
+		private const double HeatmapMonthLabelHeight = 14;
+
+		/// <summary>
+		/// Draws a GitHub-style contribution grid over a fixed, rolling 53-week
+		/// window ending with the current week. Not configurable by design.
+		/// </summary>
+		private void BuildHeatmap(List<ScreenshotMetadata> allScreenshots)
+		{
+			HeatmapCanvas.Children.Clear();
+
+			DateTime today = DateTime.Now.Date;
+			// Back up to the Sunday of this week, then 52 more weeks, so every
+			// column is a full Sunday-to-Saturday week.
+			DateTime firstDay = today.AddDays(-(int)today.DayOfWeek).AddDays(-7 * (HeatmapWeeks - 1));
+
+			var countsByDay = new Dictionary<DateTime, int>();
+			foreach (var screenshot in allScreenshots)
+			{
+				DateTime day = screenshot.DateTaken.Date;
+				if (day < firstDay || day > today) continue;
+				countsByDay[day] = countsByDay.TryGetValue(day, out int seen) ? seen + 1 : 1;
+			}
+
+			HeatmapCanvas.Width = HeatmapDayLabelWidth + HeatmapWeeks * HeatmapColumnPitch - HeatmapCellGap;
+			HeatmapCanvas.Height = HeatmapMonthLabelHeight + 7 * HeatmapColumnPitch - HeatmapCellGap;
+
+			AddHeatmapWeekdayLabels();
+			AddHeatmapMonthLabels(firstDay);
+
+			for (int week = 0; week < HeatmapWeeks; week++)
+			{
+				for (int dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++)
+				{
+					DateTime date = firstDay.AddDays(week * 7 + dayOfWeek);
+					if (date > today) continue;
+
+					countsByDay.TryGetValue(date, out int count);
+
+					var cell = new Border
+					{
+						Width = HeatmapCellSize,
+						Height = HeatmapCellSize,
+						CornerRadius = new CornerRadius(2),
+						ToolTip = DescribeHeatmapDay(date, count)
+					};
+					// Resource reference (not a resolved brush) so the cells
+					// follow a light/dark theme switch at runtime.
+					cell.SetResourceReference(Border.BackgroundProperty,
+						$"HeatmapLevel{Math.Min(count, 4)}Brush");
+
+					Canvas.SetLeft(cell, HeatmapDayLabelWidth + week * HeatmapColumnPitch);
+					Canvas.SetTop(cell, HeatmapMonthLabelHeight + dayOfWeek * HeatmapColumnPitch);
+					HeatmapCanvas.Children.Add(cell);
+				}
+			}
+
+			int photosInWindow = countsByDay.Values.Sum();
+			HeatmapSummaryText.Text = $"{photosInWindow} photo{(photosInWindow != 1 ? "s" : "")} in the last year";
+		}
+
+		private void AddHeatmapWeekdayLabels()
+		{
+			string[] dayNames = CultureInfo.CurrentCulture.DateTimeFormat.AbbreviatedDayNames;
+
+			foreach (int dayOfWeek in new[] { 1, 3, 5 })
+			{
+				var label = CreateHeatmapLabel(dayNames[dayOfWeek]);
+				Canvas.SetLeft(label, 0);
+				Canvas.SetTop(label, HeatmapMonthLabelHeight + dayOfWeek * HeatmapColumnPitch - 1);
+				HeatmapCanvas.Children.Add(label);
+			}
+		}
+
+		private void AddHeatmapMonthLabels(DateTime firstDay)
+		{
+			int lastLabeledMonth = -1;
+			int lastLabeledWeek = -3;
+
+			for (int week = 0; week < HeatmapWeeks; week++)
+			{
+				DateTime columnStart = firstDay.AddDays(week * 7);
+				if (columnStart.Month == lastLabeledMonth) continue;
+				// Leave room between abbreviations so short months don't collide.
+				if (week - lastLabeledWeek < 3) continue;
+
+				var label = CreateHeatmapLabel(columnStart.ToString("MMM", CultureInfo.CurrentCulture));
+				Canvas.SetLeft(label, HeatmapDayLabelWidth + week * HeatmapColumnPitch);
+				Canvas.SetTop(label, 0);
+				HeatmapCanvas.Children.Add(label);
+
+				lastLabeledMonth = columnStart.Month;
+				lastLabeledWeek = week;
+			}
+		}
+
+		private TextBlock CreateHeatmapLabel(string text)
+		{
+			var label = new TextBlock { Text = text, FontSize = 9 };
+			label.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+			return label;
+		}
+
+		private static string DescribeHeatmapDay(DateTime date, int count)
+		{
+			string dateLabel = date.ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
+			return count == 0
+				? $"No photo on {dateLabel}"
+				: $"{count} photo{(count != 1 ? "s" : "")} on {dateLabel}";
+		}
+
+		#endregion
 
 		private BitmapImage LoadThumbnail(string filePath)
 		{
