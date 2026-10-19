@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -13,127 +14,128 @@ namespace PictureDay.Services
 	{
 		private readonly StorageManager _storageManager;
 		private readonly ConfigManager? _configManager;
+		private readonly PrivacyFilter? _privacyFilter;
+		private int _captureInProgress;
 
 		public ScreenshotService(StorageManager storageManager, ConfigManager? configManager = null)
 		{
 			_storageManager = storageManager;
 			_configManager = configManager;
+			_privacyFilter = configManager == null ? null : new PrivacyFilter(configManager);
 		}
 
-	public string? CaptureScreen(bool isBackup = false, bool isQuarter = false, bool isUser = false)
-	{
-		DateTime now = DateTime.Now;
-		string photoType = isUser ? "USER" : (isBackup ? "BACKUP" : (isQuarter ? "QUARTER" : "MAIN"));
-		Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ScreenshotService.CaptureScreen called - Type: {photoType}");
-
-			List<IntPtr> minimizedWindows = new List<IntPtr>();
+		public string? CaptureScreen(bool isBackup = false, bool isQuarter = false, bool isUser = false)
+		{
+			// Timer and manual requests share this service. Never minimize the desktop twice.
+			if (Interlocked.CompareExchange(ref _captureInProgress, 1, 0) != 0)
+			{
+				return null;
+			}
 
 			try
 			{
-				if (_configManager != null && _configManager.Config.DesktopOnly)
+				if (ShouldBlockCapture())
 				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Minimizing windows for desktop-only capture...");
-					minimizedWindows = MinimizeAllWindows();
-					Thread.Sleep(500);
-					System.Windows.Forms.Application.DoEvents();
-				}
-
-				Bitmap bitmap;
-
-				if (_configManager != null && _configManager.Config.CaptureAllMonitors)
-				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Capturing all monitors...");
-					bitmap = CaptureAllMonitors();
-				}
-				else
-				{
-					Screen? targetScreen = GetTargetScreen();
-					if (targetScreen == null)
-					{
-						Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR: Target screen is null");
-						RestoreWindows(minimizedWindows);
-						return null;
-					}
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Capturing single screen: {targetScreen.Bounds}");
-					bitmap = CaptureScreen(targetScreen);
-				}
-
-				if (bitmap == null)
-				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR: Bitmap is null after capture");
-					RestoreWindows(minimizedWindows);
 					return null;
 				}
 
-		Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Bitmap captured: {bitmap.Width}x{bitmap.Height}, saving...");
-		string filePath = _storageManager.SaveScreenshot(bitmap, isBackup, isQuarter, isUser);
-		RestoreWindows(minimizedWindows);
-
-				if (!string.IsNullOrEmpty(filePath))
+				using Bitmap? bitmap = CaptureBitmap();
+				if (bitmap == null || ShouldBlockCapture())
 				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Screenshot saved to: {filePath}");
-				}
-				else
-				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR: SaveScreenshot returned null or empty path");
+					return null;
 				}
 
+				string filePath = _storageManager.SaveScreenshot(bitmap, isBackup, isQuarter, isUser);
+				Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Screenshot saved to: {filePath}");
 				return filePath;
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] ERROR capturing screenshot: {ex.Message}");
-				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Stack trace: {ex.StackTrace}");
-				System.Diagnostics.Debug.WriteLine($"Error capturing screenshot: {ex.Message}");
-				RestoreWindows(minimizedWindows);
+				Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Error capturing screenshot: {ex.Message}");
+				System.Diagnostics.Debug.WriteLine(ex);
 				return null;
+			}
+			finally
+			{
+				Interlocked.Exchange(ref _captureInProgress, 0);
 			}
 		}
 
-		private List<IntPtr> MinimizeAllWindows()
+		private bool ShouldBlockCapture() => _privacyFilter?.ShouldBlockScreenshot()
+			?? !PrivacyFilter.IsInteractiveDesktopAvailable();
+
+		private Bitmap? CaptureBitmap()
 		{
-			List<IntPtr> minimizedWindows = new List<IntPtr>();
-
-			WindowHelper.EnumWindows((hWnd, lParam) =>
+			var minimizedWindows = new List<(IntPtr Handle, WindowPlacement Placement)>();
+			try
 			{
-				if (!WindowHelper.IsWindowVisible(hWnd))
+				if (_configManager?.Config.DesktopOnly == true)
 				{
-					return true;
+					// Keep the list in the caller so even a partial enumeration can be restored.
+					MinimizeAllWindows(minimizedWindows);
+					Thread.Sleep(500);
+					if (ShouldBlockCapture())
+					{
+						return null;
+					}
 				}
 
-				string? windowTitle = WindowHelper.GetWindowTitle(hWnd);
-				if (string.IsNullOrEmpty(windowTitle))
+				if (_configManager?.Config.CaptureAllMonitors == true)
 				{
-					return true;
+					return CaptureAllMonitors();
 				}
 
-				if (windowTitle.Equals("Program Manager", StringComparison.OrdinalIgnoreCase))
-				{
-					return true;
-				}
-
-				if (!WindowHelper.IsMinimized(hWnd))
-				{
-					WindowHelper.MinimizeWindow(hWnd);
-					minimizedWindows.Add(hWnd);
-				}
-
-				return true;
-			}, IntPtr.Zero);
-
-			return minimizedWindows;
+				Screen? screen = GetTargetScreen();
+				return screen == null ? null : CaptureBounds(screen.Bounds);
+			}
+			finally
+			{
+				// Restore before encoding or disk I/O, including failed screen copies.
+				RestoreWindows(minimizedWindows);
+			}
 		}
 
-		private void RestoreWindows(List<IntPtr> windows)
+		private static void MinimizeAllWindows(List<(IntPtr Handle, WindowPlacement Placement)> windows)
 		{
-			foreach (IntPtr hWnd in windows)
+			WindowHelper.EnumWindows((hWnd, lParam) =>
+			{
+				if (!WindowHelper.IsWindowVisible(hWnd) || WindowHelper.IsMinimized(hWnd))
+				{
+					return true;
+				}
+
+				string? title = WindowHelper.GetWindowTitle(hWnd);
+				if (string.IsNullOrEmpty(title) || title.Equals("Program Manager", StringComparison.OrdinalIgnoreCase))
+				{
+					return true;
+				}
+
+				var placement = new WindowPlacement { Length = Marshal.SizeOf<WindowPlacement>() };
+				if (GetWindowPlacement(hWnd, ref placement))
+				{
+					windows.Add((hWnd, placement));
+					WindowHelper.MinimizeWindow(hWnd);
+				}
+				return true;
+			}, IntPtr.Zero);
+		}
+
+		private static void RestoreWindows(List<(IntPtr Handle, WindowPlacement Placement)> windows)
+		{
+			// EnumWindows returns foreground windows first; restore them last.
+			for (int i = windows.Count - 1; i >= 0; i--)
 			{
 				try
 				{
-					WindowHelper.RestoreWindow(hWnd);
+					var (handle, placement) = windows[i];
+					if (WindowHelper.IsMinimized(handle))
+					{
+						SetWindowPlacement(handle, ref placement);
+					}
 				}
-				catch
+				catch (Exception ex)
 				{
+					System.Diagnostics.Debug.WriteLine($"Could not restore window: {ex.Message}");
 				}
 			}
 		}
@@ -141,51 +143,67 @@ namespace PictureDay.Services
 		private Screen? GetTargetScreen()
 		{
 			Screen[] screens = Screen.AllScreens;
-			if (screens.Length == 0)
+			int selectedIndex = _configManager?.Config.SelectedMonitorIndex ?? -1;
+			if (selectedIndex >= 0 && selectedIndex < screens.Length)
 			{
-				return Screen.PrimaryScreen;
+				return screens[selectedIndex];
 			}
-
-			if (_configManager != null && _configManager.Config.SelectedMonitorIndex >= 0 &&
-				_configManager.Config.SelectedMonitorIndex < screens.Length)
-			{
-				return screens[_configManager.Config.SelectedMonitorIndex];
-			}
-
-			return Screen.PrimaryScreen;
+			return Screen.PrimaryScreen ?? screens.FirstOrDefault();
 		}
 
-		private Bitmap CaptureScreen(Screen screen)
+		private static Bitmap CaptureBounds(Rectangle bounds)
 		{
-			Rectangle bounds = screen.Bounds;
-			Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height);
-			using Graphics graphics = Graphics.FromImage(bitmap);
-			graphics.CopyFromScreen(bounds.X, bounds.Y, 0, 0, bounds.Size);
-			return bitmap;
+			var bitmap = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format24bppRgb);
+			try
+			{
+				using Graphics graphics = Graphics.FromImage(bitmap);
+				graphics.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+				return bitmap;
+			}
+			catch
+			{
+				bitmap.Dispose();
+				throw;
+			}
 		}
 
-		private Bitmap CaptureAllMonitors()
+		private static Bitmap? CaptureAllMonitors()
 		{
 			Screen[] screens = Screen.AllScreens;
 			if (screens.Length == 0)
 			{
-				return CaptureScreen(Screen.PrimaryScreen!);
+				return null;
 			}
-
-			int minX = screens.Min(s => s.Bounds.X);
-			int minY = screens.Min(s => s.Bounds.Y);
-			int maxX = screens.Max(s => s.Bounds.Right);
-			int maxY = screens.Max(s => s.Bounds.Bottom);
-
-			int totalWidth = maxX - minX;
-			int totalHeight = maxY - minY;
-
-			Bitmap bitmap = new Bitmap(totalWidth, totalHeight);
-			using Graphics graphics = Graphics.FromImage(bitmap);
-			graphics.CopyFromScreen(minX, minY, 0, 0, new Size(totalWidth, totalHeight));
-
-			return bitmap;
+			Rectangle bounds = screens.Select(s => s.Bounds).Aggregate(Rectangle.Union);
+			return CaptureBounds(bounds);
 		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		private struct WindowPlacement
+		{
+			public int Length;
+			public int Flags;
+			public int ShowCommand;
+			public Point MinPosition;
+			public Point MaxPosition;
+			public NativeRectangle NormalPosition;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		private struct NativeRectangle
+		{
+			public int Left;
+			public int Top;
+			public int Right;
+			public int Bottom;
+		}
+
+		[DllImport("user32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		private static extern bool GetWindowPlacement(IntPtr hWnd, ref WindowPlacement placement);
+
+		[DllImport("user32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		private static extern bool SetWindowPlacement(IntPtr hWnd, ref WindowPlacement placement);
 	}
 }
-

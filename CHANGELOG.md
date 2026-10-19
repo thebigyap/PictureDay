@@ -6,6 +6,29 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-10-19
+
+### Added
+
+- Gallery capture filters, sorting, Today/Latest navigation, 24-photo pages, and keyboard-accessible photo cards.
+- Resizable main window, daily capture status, and nonmodal capture feedback.
+- Background photo viewer with keyboard navigation, Fit/original-size zoom, and image-error recovery.
+- An isolated Windows regression harness with offscreen light/dark UI renders.
+
+### Improved
+
+- Gallery statistics share one library snapshot; thumbnails load off-thread with cancellation and a bounded cache.
+- Manual captures share the scheduler's capture service, keep the UI responsive, and briefly hide PictureDay from the photo.
+- Settings validate a separate draft and save atomically with backup recovery; folder and schedule changes apply to active services.
+- Privacy checks include background applications and reject locked or disconnected desktops. Desktop-only captures restore window placement even after failures.
+
+### Fixed
+
+- Same-second screenshots overwriting files, copied photos losing their capture dates, and incorrect streak calculations.
+- Startup cleanup deleting pending daily candidates; failed promotions now retain fallback photos.
+- Midnight/settings-refresh ordering, short-sleep rescheduling, overlapping scheduler callbacks, and mixed schedule date/time persistence.
+- Primary-monitor selection, partial-year month navigation, keyboard navigation past unsaved settings, and updater sources being compiled into the main executable.
+
 ## [2.6.1] - 2026-08-21
 
 ### Added
@@ -320,4 +343,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Privacy filtering
 - Photo gallery
 - Basic configuration
-

@@ -1,83 +1,76 @@
 <UserControl x:Class="PictureDay.Views.PhotoGalleryView"
-			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-			 xmlns:local="clr-namespace:PictureDay.Views"
-			 mc:Ignorable="d"
-			 d:DesignHeight="450" d:DesignWidth="800">
-	<UserControl.Resources>
-		<BooleanToVisibilityConverter x:Key="BoolToVis"/>
-		<local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
-
-		<!-- Stat card -->
-		<Style x:Key="StatCard" TargetType="Border">
-			<Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-			<Setter Property="CornerRadius" Value="14"/>
-			<Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}"/>
-			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="Padding" Value="18,16"/>
-		</Style>
-
-		<!-- Heatmap legend swatch -->
-		<Style x:Key="HeatmapLegendSwatch" TargetType="Border">
-			<Setter Property="Width" Value="10"/>
-			<Setter Property="Height" Value="10"/>
-			<Setter Property="CornerRadius" Value="2"/>
-			<Setter Property="Margin" Value="4,0,0,0"/>
-			<Setter Property="VerticalAlignment" Value="Center"/>
-		</Style>
-
-		<!-- Gallery thumbnail card with hover lift -->
-		<Style x:Key="GalleryCard" TargetType="Border">
-			<Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-			<Setter Property="CornerRadius" Value="14"/>
-			<Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}"/>
-			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="Margin" Value="8"/>
-			<Setter Property="Padding" Value="8"/>
-			<Setter Property="Cursor" Value="Hand"/>
-			<Style.Triggers>
-				<Trigger Property="IsMouseOver" Value="True">
-					<Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-					<Setter Property="Effect">
-						<Setter.Value>
-							<DropShadowEffect Color="{DynamicResource ShadowColor}" BlurRadius="20" ShadowDepth="3" Opacity="0.22"/>
-						</Setter.Value>
-					</Setter>
-				</Trigger>
-			</Style.Triggers>
-		</Style>
-	</UserControl.Resources>
-
-	<Grid Background="Transparent">
-		<Grid.RowDefinitions>
-			<RowDefinition Height="Auto"/>
-			<RowDefinition Height="Auto"/>
-			<RowDefinition Height="Auto"/>
-			<RowDefinition Height="*"/>
-		</Grid.RowDefinitions>
-
-		<!-- Header: title + month navigation -->
-		<Grid Grid.Row="0" Margin="28,8,28,18">
-			<StackPanel VerticalAlignment="Center">
-				<TextBlock Text="Gallery" Style="{StaticResource LargeTitleText}"/>
-				<TextBlock Text="A snapshot of your computer, one day at a time"
-						   Style="{StaticResource CaptionText}" Margin="0,2,0,0"/>
-			</StackPanel>
-			<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-				<Button x:Name="PrevMonthButton" Style="{StaticResource RoundIconButton}"
-						Content="&#x2039;" Margin="0,0,8,0" Click="PrevMonthButton_Click"/>
-				<ComboBox x:Name="MonthComboBox" MinWidth="128" Margin="0,0,8,0"
-						  SelectionChanged="MonthComboBox_SelectionChanged" DisplayMemberPath="MonthName"/>
-				<ComboBox x:Name="YearComboBox" MinWidth="84" Margin="0,0,8,0"
-						  SelectionChanged="YearComboBox_SelectionChanged"/>
-				<Button x:Name="NextMonthButton" Style="{StaticResource RoundIconButton}"
-						Content="&#x203A;" Click="NextMonthButton_Click"/>
-			</StackPanel>
-		</Grid>
-
-		<!-- Stats -->
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="850" d:DesignWidth="1000">
+    <UserControl.Resources>
+        <Style x:Key="StatCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="18,14"/>
+        </Style>
+        <Style x:Key="HeatmapLegendSwatch" TargetType="Border">
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="GalleryCard" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="7"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="13" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.8"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Margin="28,8,28,18">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Your days, collected." Style="{StaticResource LargeTitleText}"/>
+                <TextBlock Text="Small moments. A bigger picture over time." Style="{StaticResource CaptionText}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                <Button Content="Today" Click="TodayButton_Click" ToolTip="Show today's photos" Margin="0,0,6,0"/>
+                <Button x:Name="LatestButton" Content="Latest" Click="LatestButton_Click" ToolTip="Jump to your most recent photos" Margin="0,0,6,0"/>
+                <Button x:Name="RefreshButton" Content="Refresh" Click="RefreshButton_Click" ToolTip="Read new or changed photos from your folder (F5)"/>
+            </StackPanel>
+        </Grid>		<!-- Stats -->
 		<Grid Grid.Row="1" Margin="28,0,28,8">
 			<Grid.ColumnDefinitions>
 				<ColumnDefinition Width="*"/>
@@ -148,59 +141,94 @@
 			</StackPanel>
 		</Border>
 
-		<!-- Photo grid -->
-		<ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-					  Padding="20,8,20,16">
-			<ItemsControl x:Name="PhotosItemsControl">
-				<ItemsControl.ItemsPanel>
-					<ItemsPanelTemplate>
-						<UniformGrid Columns="3"/>
-					</ItemsPanelTemplate>
-				</ItemsControl.ItemsPanel>
-				<ItemsControl.ItemTemplate>
-					<DataTemplate>
-						<Border Style="{StaticResource GalleryCard}">
-							<StackPanel>
-								<Grid Height="160">
-									<Image Source="{Binding ImageSource}"
-										   Stretch="Uniform"
-										   RenderOptions.BitmapScalingMode="HighQuality"
-										   MouseLeftButtonDown="Image_MouseLeftButtonDown"
-										   MouseRightButtonDown="Image_MouseRightButtonDown"
-										   Cursor="Hand"
-										   Visibility="{Binding IsNoPhotos, Converter={StaticResource InverseBoolToVis}}">
-										<Image.ContextMenu>
-											<ContextMenu>
-												<MenuItem Header="Open" Click="ContextMenu_Open_Click"/>
-												<MenuItem Header="Open in File Explorer" Click="ContextMenu_OpenInExplorer_Click"/>
-												<MenuItem Header="Copy Image" Click="ContextMenu_CopyImage_Click"/>
-												<MenuItem Header="Copy File Location" Click="ContextMenu_CopyPath_Click"/>
-												<Separator/>
-												<MenuItem Header="Delete" Click="ContextMenu_Delete_Click"/>
-											</ContextMenu>
-										</Image.ContextMenu>
-									</Image>
-									<TextBlock Text="{Binding Message}"
-											   FontSize="16"
-											   TextAlignment="Center"
-											   TextWrapping="Wrap"
-											   HorizontalAlignment="Center"
-											   VerticalAlignment="Center"
-											   Foreground="{DynamicResource TextSecondaryBrush}"
-											   Visibility="{Binding IsNoPhotos, Converter={StaticResource BoolToVis}}"/>
-								</Grid>
-								<TextBlock Text="{Binding DateLabel}"
-										   HorizontalAlignment="Center"
-										   Margin="0,10,0,2"
-										   FontSize="12"
-										   FontWeight="Medium"
-										   Foreground="{DynamicResource TextSecondaryBrush}"
-										   Visibility="{Binding IsNoPhotos, Converter={StaticResource InverseBoolToVis}}"/>
-							</StackPanel>
-						</Border>
-					</DataTemplate>
-				</ItemsControl.ItemTemplate>
-			</ItemsControl>
-		</ScrollViewer>
-	</Grid>
+        <Grid Grid.Row="3" Margin="28,12,28,4">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <DockPanel LastChildFill="False">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                    <Button x:Name="PrevMonthButton" Style="{StaticResource RoundIconButton}" Content="&#x2039;"
+                            Margin="0,0,6,0" Click="PrevMonthButton_Click" ToolTip="Previous month" AutomationProperties.Name="Previous month"/>
+                    <ComboBox x:Name="MonthComboBox" MinWidth="118" Margin="0,0,6,0" DisplayMemberPath="MonthName" SelectedValuePath="MonthNumber"
+                              SelectionChanged="MonthComboBox_SelectionChanged" AutomationProperties.Name="Month"/>
+                    <ComboBox x:Name="YearComboBox" MinWidth="80" Margin="0,0,6,0"
+                              SelectionChanged="YearComboBox_SelectionChanged" AutomationProperties.Name="Year"/>
+                    <Button x:Name="NextMonthButton" Style="{StaticResource RoundIconButton}" Content="&#x203A;"
+                            Click="NextMonthButton_Click" ToolTip="Next month" AutomationProperties.Name="Next month"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
+                    <ComboBox x:Name="CaptureFilterComboBox" SelectedIndex="0" MinWidth="132" Margin="0,0,8,0"
+                              SelectionChanged="Filter_SelectionChanged" AutomationProperties.Name="Capture type">
+                        <ComboBoxItem Content="All captures"/>
+                        <ComboBoxItem Content="Manual captures"/>
+                        <ComboBoxItem Content="Daily captures"/>
+                    </ComboBox>
+                    <ComboBox x:Name="SortComboBox" SelectedIndex="0" MinWidth="120" SelectionChanged="Filter_SelectionChanged" AutomationProperties.Name="Photo order">
+                        <ComboBoxItem Content="Newest first"/>
+                        <ComboBoxItem Content="Oldest first"/>
+                    </ComboBox>
+                </StackPanel>
+            </DockPanel>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,2">
+                <TextBlock x:Name="MonthSummaryText" Style="{StaticResource CaptionText}" VerticalAlignment="Center"/>
+                <Button x:Name="ClearDayButton" Content="Show whole month" Visibility="Collapsed" Margin="10,0,0,0" Padding="8,3"
+                        Style="{StaticResource GhostButton}" Click="ClearDayButton_Click"/>
+            </StackPanel>
+        </Grid>
+        <Grid Grid.Row="4">
+            <ScrollViewer x:Name="PhotosScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="21,0,21,8">
+                <ItemsControl x:Name="PhotosItemsControl" KeyboardNavigation.TabNavigation="Continue">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource GalleryCard}" Click="PhotoButton_Click" AutomationProperties.Name="{Binding AccessibleName}" ToolTip="{Binding AccessibleName}">
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open photo" Click="ContextMenu_Open_Click"/>
+                                        <MenuItem Header="Show in File Explorer" Click="ContextMenu_OpenInExplorer_Click"/>
+                                        <MenuItem Header="Copy image" Click="ContextMenu_CopyImage_Click"/>
+                                        <MenuItem Header="Copy file location" Click="ContextMenu_CopyPath_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Delete photo…" Click="ContextMenu_Delete_Click"/>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                                <StackPanel>
+                                    <Border Height="145" Background="{DynamicResource BackgroundBrush}" CornerRadius="7">
+                                        <Grid>
+                                            <TextBlock Text="{Binding PreviewStatus}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"
+                                                       TextAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="12" FontSize="12"/>
+                                            <Image Source="{Binding ImageSource}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock Text="{Binding DateLabel}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="4,10,4,3"/>
+                                    <TextBlock Text="{Binding DetailLabel}" Style="{StaticResource CaptionText}" Margin="4,0,4,3" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+            <Border x:Name="GalleryState" Style="{StaticResource StatCard}" Margin="28,8,28,16" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420" Margin="12">
+                    <TextBlock Text="&#xE91B;" FontFamily="Segoe MDL2 Assets" FontSize="28" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" Margin="0,0,0,14"/>
+                    <TextBlock x:Name="StateTitle" Text="Your story starts with one photo" Style="{StaticResource HeadlineText}" TextAlignment="Center" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="StateDescription" Style="{StaticResource CaptionText}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <Button x:Name="StateActionButton" Content="Go to latest photos" Click="LatestButton_Click" HorizontalAlignment="Center" Margin="0,16,0,0" Visibility="Collapsed"/>
+                </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        <Grid Grid.Row="5" Margin="28,0,28,16">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <ProgressBar x:Name="LoadingProgress" Height="2" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8"/>
+            <DockPanel Grid.Row="1" LastChildFill="True">
+                <StackPanel x:Name="PageControls" DockPanel.Dock="Right" Orientation="Horizontal" Visibility="Collapsed" Margin="12,0,0,0">
+                    <Button x:Name="PreviousPageButton" Content="Previous" Padding="10,5" Click="PreviousPageButton_Click"/>
+                    <TextBlock x:Name="PageLabel" Style="{StaticResource CaptionText}" Margin="10,0" VerticalAlignment="Center"/>
+                    <Button x:Name="NextPageButton" Content="Next" Padding="10,5" Click="NextPageButton_Click"/>
+                </StackPanel>
+                <TextBlock x:Name="GalleryStatusText" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                           AutomationProperties.LiveSetting="Polite"/>
+            </DockPanel>
+        </Grid>
+    </Grid>
 </UserControl>

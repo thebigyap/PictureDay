@@ -12,7 +12,7 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.6.1";
+		public const string Version = "2.7.0";
 
 		private NotifyIcon? _notifyIcon;
 		private NotificationService? _notificationService;
@@ -23,6 +23,7 @@ namespace PictureDay
 		private StorageManager? _storageManager;
 		private UpdateService? _updateService;
 		private static bool _isShuttingDownForUpdate = false;
+		private bool _manualCaptureInProgress;
 
 		[DllImport("kernel32.dll")]
 		private static extern bool AllocConsole();
@@ -93,30 +94,32 @@ namespace PictureDay
 
 				_dailyScheduler.PhotosProcessed += (s, e) =>
 				{
-					Application.Current.Dispatcher.Invoke(() =>
+					Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 					{
 						if (MainWindow is MainWindow mainWin)
 						{
 							mainWin.RefreshGallery();
 							DebugWriteLine("Photo gallery refreshed after midnight processing.");
 						}
-					});
+					}));
 				};
 
 				_dailyScheduler.MainPhotoTaken += _ =>
 				{
-					Application.Current.Dispatcher.Invoke(() =>
+					Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 					{
 						_notificationService?.ShowMainPhotoTaken();
-					});
+						if (MainWindow is MainWindow mainWin) { mainWin.RefreshGallery(); mainWin.UpdateCaptureStatus(); }
+					}));
 				};
 
 				_dailyScheduler.ScheduledTimeChanged += (s, e) =>
 				{
-					Application.Current.Dispatcher.Invoke(() =>
+					Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 					{
 						_notificationService?.ShowScheduledMainPhotoTimeUpdated(_dailyScheduler.ScheduledTime);
-					});
+						if (MainWindow is MainWindow mainWin) mainWin.UpdateCaptureStatus();
+					}));
 				};
 
 				_dailyScheduler.Start();
@@ -148,6 +151,10 @@ namespace PictureDay
 				Resources["StorageManager"] = _storageManager;
 				Resources["DailyScheduler"] = _dailyScheduler;
 				Resources["ScreenshotService"] = _screenshotService;
+				Resources["PrivacyFilter"] = _privacyFilter;
+				MainWindow = new MainWindow { WindowState = WindowState.Minimized };
+				MainWindow.Show();
+				MainWindow.Hide();
 
 				DebugWriteLine("Initializing UpdateService...");
 				_updateService = new UpdateService();
@@ -198,7 +205,7 @@ namespace PictureDay
 
 			_notifyIcon.DoubleClick += (sender, e) =>
 			{
-				if (MainWindow.WindowState == WindowState.Minimized)
+				if (!MainWindow.IsVisible || MainWindow.WindowState == WindowState.Minimized)
 				{
 					MainWindow.Show();
 					MainWindow.WindowState = WindowState.Normal;
@@ -219,7 +226,7 @@ namespace PictureDay
 				MainWindow.Activate();
 			});
 			contextMenu.Items.Add("-");
-			contextMenu.Items.Add("Take Screenshot Now", null, (s, e) => TakeManualScreenshot());
+			contextMenu.Items.Add("Take Screenshot Now", null, async (s, e) => await TakeManualScreenshotAsync());
 			contextMenu.Items.Add("Settings", null, (s, e) =>
 			{
 				MainWindow.Show();
@@ -236,39 +243,44 @@ namespace PictureDay
 			_notifyIcon.ContextMenuStrip = contextMenu;
 		}
 
-		private void TakeManualScreenshot()
+		public async Task TakeManualScreenshotAsync()
 		{
-			if (_screenshotService == null || _privacyFilter == null || _storageManager == null)
+			if (_manualCaptureInProgress || _screenshotService == null || _privacyFilter == null) return;
+			_manualCaptureInProgress = true;
+			var window = MainWindow as MainWindow;
+			bool restoreWindow = window?.IsVisible == true && window.WindowState != WindowState.Minimized;
+			WindowState previousState = window?.WindowState ?? WindowState.Normal;
+			string message = "Could not capture your screen. Check privacy settings and the photo folder.";
+			bool success = false;
+			window?.SetCaptureBusy(true);
+			try
 			{
-				System.Windows.MessageBox.Show("Screenshot service not available.", "Error",
-					System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-				return;
-			}
-
-			if (_privacyFilter.ShouldBlockScreenshot())
-			{
-				_notifyIcon?.ShowBalloonTip(3000, "PictureDay",
-					"Screenshot blocked: Privacy filter detected blocked applications or private browsing mode.",
-					System.Windows.Forms.ToolTipIcon.Info);
-				return;
-			}
-
-			string? screenshotPath = _screenshotService.CaptureScreen(isBackup: false, isUser: true);
-			if (!string.IsNullOrEmpty(screenshotPath))
-			{
-				_notifyIcon?.ShowBalloonTip(3000, "PictureDay",
-					$"Screenshot saved successfully!", System.Windows.Forms.ToolTipIcon.Info);
-
-				if (MainWindow is MainWindow mainWin)
+				if (await Task.Run(() => _privacyFilter.ShouldBlockScreenshot()))
 				{
-					mainWin.RefreshGallery();
+					message = "Capture blocked by a privacy check. Your screen was not saved.";
+				}
+				else
+				{
+					if (restoreWindow) { window!.Hide(); await Task.Delay(250); }
+					string? path = await Task.Run(() => _screenshotService.CaptureScreen(isUser: true));
+					success = !string.IsNullOrEmpty(path);
+					if (success) { message = "Screenshot saved to your photo folder"; window?.RefreshGallery(); }
 				}
 			}
-			else
+			catch (Exception ex) { System.Diagnostics.Debug.WriteLine(ex); }
+			finally
 			{
-				_notifyIcon?.ShowBalloonTip(3000, "PictureDay",
-					"Failed to capture screenshot.", System.Windows.Forms.ToolTipIcon.Error);
+				_manualCaptureInProgress = false;
+				window?.SetCaptureBusy(false);
+				if (restoreWindow && !Dispatcher.HasShutdownStarted)
+				{
+					window!.Show();
+					window.WindowState = previousState;
+					window.Activate();
+				}
 			}
+			if (window?.IsVisible == true) window.ShowToast(message, success);
+			else _notifyIcon?.ShowBalloonTip(3000, "PictureDay", message, success ? ToolTipIcon.Info : ToolTipIcon.Warning);
 		}
 
 		private void CheckForUpdates()
@@ -331,11 +343,11 @@ namespace PictureDay
 			ResourceDictionary themeDict = new ResourceDictionary();
 			if (theme == "Dark")
 			{
-				themeDict.Source = new Uri("Themes/DarkTheme.xaml", UriKind.Relative);
+				themeDict.Source = new Uri("/PictureDay;component/Themes/DarkTheme.xaml", UriKind.Relative);
 			}
 			else
 			{
-				themeDict.Source = new Uri("Themes/LightTheme.xaml", UriKind.Relative);
+				themeDict.Source = new Uri("/PictureDay;component/Themes/LightTheme.xaml", UriKind.Relative);
 			}
 
 			mergedDicts.Add(themeDict);

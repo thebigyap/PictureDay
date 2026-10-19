@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace PictureDay.Models
@@ -25,9 +25,9 @@ namespace PictureDay.Models
 		public TimeSpan? ScheduleRangeStart { get; set; }
 		public TimeSpan? ScheduleRangeEnd { get; set; }
 		public bool CaptureAllMonitors { get; set; } = false;
-		public int SelectedMonitorIndex { get; set; } = 0;
+		// -1 follows the Windows primary monitor; nonnegative values select an explicit screen.
+		public int SelectedMonitorIndex { get; set; } = -1;
 		public string Theme { get; set; } = "Light";
 		public bool DesktopOnly { get; set; } = false;
 	}
 }
-

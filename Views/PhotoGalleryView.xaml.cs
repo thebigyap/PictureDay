@@ -1,211 +1,261 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
 using PictureDay.Models;
 using PictureDay.Services;
 using UserControl = System.Windows.Controls.UserControl;
 using Clipboard = System.Windows.Clipboard;
 using MessageBox = System.Windows.MessageBox;
+using MenuItem = System.Windows.Controls.MenuItem;
+using ContextMenu = System.Windows.Controls.ContextMenu;
 
 namespace PictureDay.Views
 {
-	public partial class PhotoGalleryView : UserControl
-	{
-		private StorageManager? _storageManager;
-		private int _currentYear;
-		private int _currentMonth;
+    public partial class PhotoGalleryView : UserControl
+    {
+        private const int PageSize = 24;
+        private readonly GalleryThumbnailCache _thumbnailCache = new();
+        private StorageManager? _storageManager;
+        private StorageSnapshot? _snapshot;
+        private CancellationTokenSource? _refreshCancellation;
+        private CancellationTokenSource? _thumbnailCancellation;
+        private List<ScreenshotMetadata> _visiblePhotos = new();
+        private int _currentYear = DateTime.Today.Year;
+        private int _currentMonth = DateTime.Today.Month;
+        private int _pageIndex;
+        private bool _updatingControls;
+        private bool _refreshing;
+        private bool _needsResume;
+        private DateTime? _selectedDay;
 
-		public PhotoGalleryView()
-		{
-			InitializeComponent();
-		}
+        public PhotoGalleryView()
+        {
+            InitializeComponent();
+            PreviewKeyDown += async (_, e) =>
+            {
+                if (e.Key != Key.F5) return;
+                e.Handled = true;
+                await RefreshAsync();
+            };
+            Unloaded += (_, _) =>
+            {
+                _needsResume = true;
+                _refreshCancellation?.Cancel();
+                _thumbnailCancellation?.Cancel();
+            };
+            Loaded += async (_, _) =>
+            {
+                if (_needsResume && _storageManager != null)
+                {
+                    _needsResume = false;
+                    await RefreshAsync();
+                }
+            };
+        }
 
-		public void Initialize(StorageManager storageManager)
-		{
-			_storageManager = storageManager;
-			InitializeDateControls();
-			LoadPhotos();
-		}
+        public void Initialize(StorageManager storageManager)
+        {
+            if (!ReferenceEquals(_storageManager, storageManager)) _snapshot = null;
+            _storageManager = storageManager;
+            _ = RefreshAsync();
+        }
 
-		private void InitializeDateControls()
-		{
-			if (_storageManager == null)
-			{
-				MonthComboBox.SelectedIndex = DateTime.Now.Month - 1;
-				YearComboBox.SelectedItem = DateTime.Now.Year;
-				return;
-			}
+        /// <summary>Refresh once after library changes; month, sort and page navigation use this snapshot.</summary>
+        public async Task RefreshAsync()
+        {
+            if (_storageManager == null) return;
+            _refreshCancellation?.Cancel();
+            _refreshCancellation?.Dispose();
+            var cancellation = _refreshCancellation = new CancellationTokenSource();
+            var token = cancellation.Token;
+            var storage = _storageManager;
+            _thumbnailCancellation?.Cancel();
+            _thumbnailCancellation?.Dispose();
+            _thumbnailCancellation = null;
+            _refreshing = true;
+            RefreshButton.IsEnabled = false;
+            LoadingProgress.Visibility = Visibility.Visible;
+            GalleryStatusText.Text = "Reading your photo library…";
+            SetState("Loading your library", "Your photos and activity will appear here in a moment.", _snapshot == null);
+            try
+            {
+                var snapshot = await Task.Run(storage.GetSnapshot, token);
+                token.ThrowIfCancellationRequested();
+                var firstLoad = _snapshot == null;
+                _snapshot = snapshot;
+                if (firstLoad && snapshot.Screenshots.Count > 0)
+                {
+                    var latest = snapshot.Screenshots.Max(photo => photo.DateTaken);
+                    _currentYear = latest.Year;
+                    _currentMonth = latest.Month;
+                }
+                UpdateDateControls();
+                UpdateStats(snapshot);
+                _refreshing = false;
+                await LoadPhotosAsync();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading photo library: {ex}");
+                GalleryStatusText.Text = "The photo library could not be refreshed.";
+                SetState("We couldn't read this folder", "Check that your photo folder is available, then choose Refresh.", true);
+                StateActionButton.Visibility = Visibility.Collapsed;
+            }
+            finally
+            {
+                if (ReferenceEquals(_refreshCancellation, cancellation))
+                {
+                    _refreshing = false;
+                    RefreshButton.IsEnabled = true;
+                    LoadingProgress.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
 
-			var (minYear, minMonth, maxYear, maxMonth) = _storageManager.GetDateRange();
+        private DateTime CurrentMonth => new(_currentYear, _currentMonth, 1);
+        private DateTime EarliestMonth
+        {
+            get
+            {
+                var earliest = _snapshot?.Screenshots.MinBy(photo => photo.DateTaken)?.DateTaken ?? DateTime.Today;
+                if (earliest > DateTime.Today) earliest = DateTime.Today;
+                return new DateTime(earliest.Year, earliest.Month, 1);
+            }
+        }
+        private DateTime LatestMonth
+        {
+            get
+            {
+                var latest = _snapshot?.Screenshots.MaxBy(photo => photo.DateTaken)?.DateTaken ?? DateTime.Today;
+                if (latest < DateTime.Today) latest = DateTime.Today;
+                return new DateTime(latest.Year, latest.Month, 1);
+            }
+        }
 
-			YearComboBox.Items.Clear();
-			for (int year = minYear; year <= maxYear; year++)
-			{
-				YearComboBox.Items.Add(year);
-			}
+        private void UpdateDateControls()
+        {
+            _updatingControls = true;
+            try
+            {
+                var current = CurrentMonth;
+                if (current < EarliestMonth) current = EarliestMonth;
+                if (current > LatestMonth) current = LatestMonth;
+                _currentYear = current.Year;
+                _currentMonth = current.Month;
+                YearComboBox.ItemsSource = Enumerable.Range(EarliestMonth.Year, LatestMonth.Year - EarliestMonth.Year + 1).Reverse().ToList();
+                YearComboBox.SelectedItem = _currentYear;
+                var minMonth = _currentYear == EarliestMonth.Year ? EarliestMonth.Month : 1;
+                var maxMonth = _currentYear == LatestMonth.Year ? LatestMonth.Month : 12;
+                MonthComboBox.ItemsSource = Enumerable.Range(minMonth, maxMonth - minMonth + 1)
+                    .Select(month => new MonthOption(month, CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month))).ToList();
+                MonthComboBox.SelectedValue = _currentMonth;
+                PrevMonthButton.IsEnabled = CurrentMonth > EarliestMonth;
+                NextMonthButton.IsEnabled = CurrentMonth < LatestMonth;
+                LatestButton.IsEnabled = _snapshot?.Screenshots.Count > 0;
+            }
+            finally { _updatingControls = false; }
+        }
 
-			_currentYear = DateTime.Now.Year;
-			_currentMonth = DateTime.Now.Month;
+        private async Task LoadPhotosAsync()
+        {
+            if (_snapshot == null || _refreshing) return;
+            _thumbnailCancellation?.Cancel();
+            _thumbnailCancellation?.Dispose();
+            var cancellation = _thumbnailCancellation = new CancellationTokenSource();
+            var token = cancellation.Token;
+            var photos = _snapshot.Screenshots.Where(photo => photo.DateTaken.Year == _currentYear && photo.DateTaken.Month == _currentMonth);
+            if (_selectedDay.HasValue) photos = photos.Where(photo => photo.DateTaken.Date == _selectedDay.Value);
+            if (CaptureFilterComboBox.SelectedIndex == 1) photos = photos.Where(IsManual);
+            if (CaptureFilterComboBox.SelectedIndex == 2) photos = photos.Where(photo => !IsManual(photo));
+            _visiblePhotos = (SortComboBox.SelectedIndex == 1 ? photos.OrderBy(photo => photo.DateTaken) : photos.OrderByDescending(photo => photo.DateTaken)).ToList();
+            int pages = Math.Max(1, (_visiblePhotos.Count + PageSize - 1) / PageSize);
+            _pageIndex = Math.Clamp(_pageIndex, 0, pages - 1);
+            var items = _visiblePhotos.Skip(_pageIndex * PageSize).Take(PageSize).Select(photo => new GalleryPhotoItem(photo)).ToList();
+            PhotosItemsControl.ItemsSource = items;
+            PhotosScrollViewer.ScrollToTop();
+            PageLabel.Text = $"Page {_pageIndex + 1} of {pages}";
+            PreviousPageButton.IsEnabled = _pageIndex > 0;
+            NextPageButton.IsEnabled = _pageIndex + 1 < pages;
+            PageControls.Visibility = pages > 1 ? Visibility.Visible : Visibility.Collapsed;
+            var period = _selectedDay?.ToString("D", CultureInfo.CurrentCulture) ?? CurrentMonth.ToString("MMMM yyyy", CultureInfo.CurrentCulture);
+            MonthSummaryText.Text = $"{_visiblePhotos.Count:N0} {(_visiblePhotos.Count == 1 ? "photo" : "photos")} · {period}";
+            ClearDayButton.Visibility = _selectedDay.HasValue ? Visibility.Visible : Visibility.Collapsed;
+            var emptyLibrary = _snapshot.Screenshots.Count == 0;
+            SetState(emptyLibrary ? "Your story starts with one photo" : "No photos in this view",
+                emptyLibrary ? "Use Take Screenshot to save your first moment."
+                : "Try another month or capture type, or jump to your latest photo.", items.Count == 0);
+            StateActionButton.Visibility = !emptyLibrary && items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            GalleryStatusText.Text = items.Count > 0 ? "Loading previews…" : "Photos stay in the folder you choose in Settings.";
+            LoadingProgress.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            int failed = 0;
+            try
+            {
+                await Parallel.ForEachAsync(items, new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = token }, async (item, itemToken) =>
+                {
+                    System.Windows.Media.Imaging.BitmapImage? thumbnail = null;
+                    try { thumbnail = _thumbnailCache.Get(item.FilePath); }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        Interlocked.Increment(ref failed);
+                        Debug.WriteLine($"Error loading preview {item.FilePath}: {ex.Message}");
+                    }
+                    itemToken.ThrowIfCancellationRequested();
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        if (!token.IsCancellationRequested) item.SetPreview(thumbnail);
+                    });
+                });
+                token.ThrowIfCancellationRequested();
+                GalleryStatusText.Text = failed > 0 ? $"{failed} preview{(failed == 1 ? " is" : "s are")} unavailable. Other photos are ready to open."
+                    : items.Count > 0 ? "Open a photo to explore · Arrow keys browse · Esc closes the viewer" : "Photos stay in the folder you choose in Settings.";
+            }
+            catch (OperationCanceledException) { }
+            finally
+            {
+                if (ReferenceEquals(_thumbnailCancellation, cancellation)) LoadingProgress.Visibility = Visibility.Collapsed;
+            }
+        }
 
-			if (_currentYear < minYear || _currentYear > maxYear)
-			{
-				_currentYear = maxYear;
-				_currentMonth = maxMonth;
-			}
-			else if (_currentYear == minYear && _currentMonth < minMonth)
-			{
-				_currentMonth = minMonth;
-			}
-			else if (_currentYear == maxYear && _currentMonth > maxMonth)
-			{
-				_currentMonth = maxMonth;
-			}
+        private static bool IsManual(ScreenshotMetadata photo) => Path.GetFileName(photo.FilePath).StartsWith("u_", StringComparison.OrdinalIgnoreCase);
 
-			UpdateMonthComboBox();
-			YearComboBox.SelectedItem = _currentYear;
-		}
+        private void SetState(string title, string description, bool visible)
+        {
+            StateTitle.Text = title;
+            StateDescription.Text = description;
+            GalleryState.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            PhotosScrollViewer.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
+        }
 
-		private void UpdateMonthComboBox()
-		{
-			if (_storageManager == null) return;
+        private void UpdateStats(StorageSnapshot snapshot)
+        {
+            TotalPhotosValue.Text = snapshot.Screenshots.Count.ToString("N0", CultureInfo.CurrentCulture);
+            var (value, unit) = FormatBytes(snapshot.TotalStorageBytes);
+            StorageUsedValue.Text = value;
+            StorageUsedUnit.Text = " " + unit;
+            LongestStreakValue.Text = snapshot.LongestStreak.ToString(CultureInfo.CurrentCulture);
+            LongestStreakUnit.Text = snapshot.LongestStreak == 1 ? " day" : " days";
+            CurrentStreakValue.Text = snapshot.CurrentStreak.ToString(CultureInfo.CurrentCulture);
+            CurrentStreakUnit.Text = snapshot.CurrentStreak == 1 ? " day" : " days";
+            BuildHeatmap(snapshot.Screenshots);
+        }
 
-			var (minMonth, maxMonth) = _storageManager.GetMonthRangeForYear(_currentYear);
-
-			MonthComboBox.Items.Clear();
-
-			for (int i = minMonth; i <= maxMonth; i++)
-			{
-				MonthComboBox.Items.Add(new { MonthNumber = i, MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(i) });
-			}
-
-			if (_currentMonth < minMonth || _currentMonth > maxMonth)
-			{
-				_currentMonth = minMonth;
-			}
-
-			int selectedIndex = -1;
-			for (int i = 0; i < MonthComboBox.Items.Count; i++)
-			{
-				var item = MonthComboBox.Items[i];
-				var monthNumberProperty = item.GetType().GetProperty("MonthNumber");
-				if (monthNumberProperty != null && (int)monthNumberProperty.GetValue(item)! == _currentMonth)
-				{
-					selectedIndex = i;
-					break;
-				}
-			}
-
-			if (selectedIndex >= 0)
-			{
-				MonthComboBox.SelectedIndex = selectedIndex;
-			}
-			else if (MonthComboBox.Items.Count > 0)
-			{
-				MonthComboBox.SelectedIndex = 0;
-			}
-		}
-
-		private void LoadPhotos()
-		{
-			if (_storageManager == null) return;
-
-			PhotosItemsControl.Items.Clear();
-
-			try
-			{
-				List<ScreenshotMetadata> screenshots = _storageManager.GetScreenshotsByMonth(_currentYear, _currentMonth);
-
-				if (screenshots.Count == 0)
-				{
-					var noPhotosItem = new
-					{
-						IsNoPhotos = true,
-						Message = "No Photos"
-					};
-					PhotosItemsControl.Items.Add(noPhotosItem);
-				}
-				else
-				{
-					foreach (var screenshot in screenshots)
-					{
-						if (File.Exists(screenshot.FilePath))
-						{
-							var item = new
-							{
-								ImageSource = LoadThumbnail(screenshot.FilePath),
-								FilePath = screenshot.FilePath,
-								DateLabel = screenshot.DateTaken.ToString("MM/dd/yyyy HH:mm"),
-								IsNoPhotos = false
-							};
-							PhotosItemsControl.Items.Add(item);
-						}
-					}
-				}
-
-				UpdateStats();
-			}
-			catch (Exception ex)
-			{
-				System.Diagnostics.Debug.WriteLine($"Error loading photos: {ex.Message}");
-			}
-		}
-
-		private void UpdateStats()
-		{
-			if (_storageManager == null) return;
-
-			try
-			{
-				var allScreenshots = _storageManager.GetAllScreenshots();
-				int totalPhotos = allScreenshots.Count;
-				TotalPhotosValue.Text = totalPhotos.ToString();
-
-				long totalBytes = _storageManager.GetTotalStorageUsed();
-				var (storageValue, storageUnit) = FormatBytes(totalBytes);
-				StorageUsedValue.Text = storageValue;
-				StorageUsedUnit.Text = " " + storageUnit;
-
-				int longestStreak = _storageManager.GetLongestStreak();
-				LongestStreakValue.Text = longestStreak.ToString();
-				LongestStreakUnit.Text = longestStreak == 1 ? " day" : " days";
-
-				int currentStreak = _storageManager.GetCurrentStreak();
-				CurrentStreakValue.Text = currentStreak.ToString();
-				CurrentStreakUnit.Text = currentStreak == 1 ? " day" : " days";
-
-				BuildHeatmap(allScreenshots);
-			}
-			catch (Exception ex)
-			{
-				System.Diagnostics.Debug.WriteLine($"Error updating stats: {ex.Message}");
-			}
-		}
-
-		// The unit is returned separately so it can be rendered smaller than the
-		// number; at full size it used to overflow the card and get trimmed away.
-		private (string Value, string Unit) FormatBytes(long bytes)
-		{
-			string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-			double len = bytes;
-			int order = 0;
-			while (len >= 1024 && order < sizes.Length - 1)
-			{
-				order++;
-				len = len / 1024;
-			}
-			string format = (order == 0 || len >= 100) ? "0" : "0.#";
-			return (len.ToString(format, CultureInfo.CurrentCulture), sizes[order]);
-		}
-
+        private static (string Value, string Unit) FormatBytes(long bytes)
+        {
+            string[] units = { "B", "KB", "MB", "GB", "TB" };
+            double value = bytes;
+            int order = 0;
+            while (value >= 1024 && order < units.Length - 1) { value /= 1024; order++; }
+            return (value.ToString(order == 0 || value >= 100 ? "0" : "0.#", CultureInfo.CurrentCulture), units[order]);
+        }
 		#region Photo activity heatmap
 
 		private const int HeatmapWeeks = 53;
@@ -219,7 +269,7 @@ namespace PictureDay.Views
 		/// Draws a GitHub-style contribution grid over a fixed, rolling 53-week
 		/// window ending with the current week. Not configurable by design.
 		/// </summary>
-		private void BuildHeatmap(List<ScreenshotMetadata> allScreenshots)
+		private void BuildHeatmap(IReadOnlyList<ScreenshotMetadata> allScreenshots)
 		{
 			HeatmapCanvas.Children.Clear();
 
@@ -324,748 +374,112 @@ namespace PictureDay.Views
 		}
 
 		#endregion
-
-		private BitmapImage LoadThumbnail(string filePath)
-		{
-			BitmapImage bitmap = new BitmapImage();
-			bitmap.BeginInit();
-			bitmap.UriSource = new Uri(filePath);
-			bitmap.DecodePixelWidth = 250;
-			bitmap.CacheOption = BitmapCacheOption.OnLoad;
-			bitmap.EndInit();
-			bitmap.Freeze();
-			return bitmap;
-		}
-
-		private void Image_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-		{
-			if (sender is System.Windows.Controls.Image image)
-			{
-				var dataContext = image.DataContext;
-				if (dataContext == null) return;
-
-				string? filePath = null;
-				var filePathProperty = dataContext.GetType().GetProperty("FilePath");
-				if (filePathProperty != null)
-				{
-					filePath = filePathProperty.GetValue(dataContext) as string;
-				}
-
-				if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-				{
-					return;
-				}
-
-				OpenImageInViewer(filePath);
-			}
-		}
-
-		private void PrevMonthButton_Click(object sender, RoutedEventArgs e)
-		{
-			if (_storageManager == null) return;
-
-			var (minYear, minMonth, maxYear, maxMonth) = _storageManager.GetDateRange();
-
-			_currentMonth--;
-			if (_currentMonth < 1)
-			{
-				_currentMonth = 12;
-				_currentYear--;
-			}
-
-			DateTime currentDate = new DateTime(_currentYear, _currentMonth, 1);
-			DateTime minDate = new DateTime(minYear, minMonth, 1);
-
-			if (currentDate < minDate)
-			{
-				_currentYear = minYear;
-				_currentMonth = minMonth;
-			}
-
-			UpdateMonthComboBox();
-			UpdateDateControls();
-			LoadPhotos();
-		}
-
-		private void NextMonthButton_Click(object sender, RoutedEventArgs e)
-		{
-			if (_storageManager == null) return;
-
-			var (minYear, minMonth, maxYear, maxMonth) = _storageManager.GetDateRange();
-
-			_currentMonth++;
-			if (_currentMonth > 12)
-			{
-				_currentMonth = 1;
-				_currentYear++;
-			}
-
-			DateTime currentDate = new DateTime(_currentYear, _currentMonth, 1);
-			DateTime maxDate = new DateTime(maxYear, maxMonth, 1);
-
-			if (currentDate > maxDate)
-			{
-				_currentYear = maxYear;
-				_currentMonth = maxMonth;
-			}
-
-			UpdateMonthComboBox();
-			UpdateDateControls();
-			LoadPhotos();
-		}
-
-		private void MonthComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			if (MonthComboBox.SelectedItem != null)
-			{
-				var monthNumberProperty = MonthComboBox.SelectedItem.GetType().GetProperty("MonthNumber");
-				if (monthNumberProperty != null)
-				{
-					_currentMonth = (int)monthNumberProperty.GetValue(MonthComboBox.SelectedItem)!;
-					LoadPhotos();
-				}
-			}
-		}
-
-		private void YearComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			if (YearComboBox.SelectedItem is int year)
-			{
-				_currentYear = year;
-				UpdateMonthComboBox();
-				MonthComboBox.SelectedIndex = _currentMonth - 1;
-				LoadPhotos();
-			}
-		}
-
-		private void UpdateDateControls()
-		{
-			MonthComboBox.SelectedIndex = _currentMonth - 1;
-			YearComboBox.SelectedItem = _currentYear;
-		}
-
-		private string? GetFilePathFromContext(object sender)
-		{
-			if (sender is MenuItem menuItem)
-			{
-				var contextMenu = menuItem.Parent as ContextMenu;
-				if (contextMenu?.PlacementTarget is System.Windows.Controls.Image image)
-				{
-					var dataContext = image.DataContext;
-					if (dataContext != null)
-					{
-						var filePathProperty = dataContext.GetType().GetProperty("FilePath");
-						if (filePathProperty != null)
-						{
-							return filePathProperty.GetValue(dataContext) as string;
-						}
-					}
-				}
-			}
-			return null;
-		}
-
-		private void ContextMenu_Open_Click(object sender, RoutedEventArgs e)
-		{
-			string? filePath = GetFilePathFromContext(sender);
-			if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-			{
-				return;
-			}
-
-			// Reuse the existing Image_MouseLeftButtonDown logic
-			OpenImageInViewer(filePath);
-		}
-
-		private void Image_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
-		{
-			// This ensures the context menu gets the correct data context
-			if (sender is System.Windows.Controls.Image image)
-			{
-				e.Handled = false; // Allow context menu to show
-			}
-		}
-
-		private void ContextMenu_OpenInExplorer_Click(object sender, RoutedEventArgs e)
-		{
-			string? filePath = GetFilePathFromContext(sender);
-			if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-			{
-				return;
-			}
-
-			try
-			{
-				// Open the folder and select the file
-				Process.Start("explorer.exe", $"/select,\"{filePath}\"");
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show($"Error opening file in Explorer: {ex.Message}", "Error",
-					MessageBoxButton.OK, MessageBoxImage.Error);
-			}
-		}
-
-		private void ContextMenu_CopyImage_Click(object sender, RoutedEventArgs e)
-		{
-			string? filePath = GetFilePathFromContext(sender);
-			if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-			{
-				return;
-			}
-
-			try
-			{
-				BitmapImage bitmap = new BitmapImage();
-				bitmap.BeginInit();
-				bitmap.UriSource = new Uri(filePath);
-				bitmap.CacheOption = BitmapCacheOption.OnLoad;
-				bitmap.EndInit();
-				bitmap.Freeze();
-
-				Clipboard.SetImage(bitmap);
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show($"Error copying image: {ex.Message}", "Error",
-					MessageBoxButton.OK, MessageBoxImage.Error);
-			}
-		}
-
-		private void ContextMenu_CopyPath_Click(object sender, RoutedEventArgs e)
-		{
-			string? filePath = GetFilePathFromContext(sender);
-			if (string.IsNullOrEmpty(filePath))
-			{
-				return;
-			}
-
-			try
-			{
-				Clipboard.SetText(filePath);
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show($"Error copying file path: {ex.Message}", "Error",
-					MessageBoxButton.OK, MessageBoxImage.Error);
-			}
-		}
-
-		private void ContextMenu_Delete_Click(object sender, RoutedEventArgs e)
-		{
-			string? filePath = GetFilePathFromContext(sender);
-			if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-			{
-				return;
-			}
-
-			var result = MessageBox.Show(
-				$"Are you sure you want to delete this screenshot?\n\n{Path.GetFileName(filePath)}",
-				"Delete Screenshot",
-				MessageBoxButton.YesNo,
-				MessageBoxImage.Warning);
-
-			if (result == MessageBoxResult.Yes)
-			{
-				try
-				{
-					File.Delete(filePath);
-					LoadPhotos(); // Refresh the gallery
-				}
-				catch (Exception ex)
-				{
-					MessageBox.Show($"Error deleting file: {ex.Message}", "Error",
-						MessageBoxButton.OK, MessageBoxImage.Error);
-				}
-			}
-		}
-
-		private void OpenImageInViewer(string filePath)
-		{
-			// Get all screenshots for the current month, sorted by date
-			List<ScreenshotMetadata> allScreenshots = new List<ScreenshotMetadata>();
-			if (_storageManager != null)
-			{
-				allScreenshots = _storageManager.GetScreenshotsByMonth(_currentYear, _currentMonth)
-					.Where(s => File.Exists(s.FilePath))
-					.OrderBy(s => s.DateTaken)
-					.ToList();
-			}
-
-			// Find current image index
-			int currentIndex = allScreenshots.FindIndex(s => s.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
-			if (currentIndex < 0) currentIndex = 0;
-
-			Window imageWindow = new Window
-			{
-				Title = $"Screenshot - {Path.GetFileName(filePath)}",
-				Width = 1200,
-				Height = 800,
-				WindowStartupLocation = WindowStartupLocation.CenterOwner,
-				Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
-			};
-
-			double zoomLevel = 1.0;
-			double baseImageWidth = 0;
-			double baseImageHeight = 0;
-			double baseFitScale = 1.0;
-
-			System.Windows.Controls.Image fullImage = new System.Windows.Controls.Image
-			{
-				Stretch = System.Windows.Media.Stretch.Uniform
-			};
-
-			System.Windows.Controls.Button exitButton = new System.Windows.Controls.Button
-			{
-				Content = "Exit",
-				Padding = new Thickness(10, 5, 10, 5),
-				Margin = new Thickness(10, 5, 0, 5),
-				HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-				VerticalAlignment = System.Windows.VerticalAlignment.Top
-			};
-
-			System.Windows.Controls.TextBlock zoomLevelText = new System.Windows.Controls.TextBlock
-			{
-				Text = "100%",
-				FontSize = 14,
-				VerticalAlignment = System.Windows.VerticalAlignment.Center,
-				Margin = new Thickness(5, 0, 5, 0),
-				Foreground = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("TextBrush") ?? System.Windows.Media.Brushes.Black
-			};
-
-			System.Windows.Controls.Button zoomInButton = new System.Windows.Controls.Button
-			{
-				Content = "+",
-				FontSize = 16,
-				Width = 30,
-				Height = 30,
-				Padding = new Thickness(0),
-				Margin = new Thickness(5, 0, 0, 0)
-			};
-
-			System.Windows.Controls.Button zoomOutButton = new System.Windows.Controls.Button
-			{
-				Content = "-",
-				FontSize = 16,
-				Width = 30,
-				Height = 30,
-				Padding = new Thickness(0),
-				Margin = new Thickness(5, 0, 0, 0)
-			};
-
-			System.Windows.Controls.Button zoomResetButton = new System.Windows.Controls.Button
-			{
-				Content = "Reset",
-				FontSize = 12,
-				Padding = new Thickness(8, 4, 8, 4),
-				Margin = new Thickness(5, 0, 0, 0)
-			};
-
-			System.Windows.Controls.StackPanel zoomPanel = new System.Windows.Controls.StackPanel
-			{
-				Orientation = System.Windows.Controls.Orientation.Horizontal,
-				HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-				VerticalAlignment = System.Windows.VerticalAlignment.Top,
-				Margin = new Thickness(0, 5, 10, 5)
-			};
-			zoomPanel.Children.Add(zoomOutButton);
-			zoomPanel.Children.Add(zoomLevelText);
-			zoomPanel.Children.Add(zoomInButton);
-			zoomPanel.Children.Add(zoomResetButton);
-
-		System.Windows.Controls.Button leftArrow = new System.Windows.Controls.Button
-		{
-			Content = "←",
-			FontSize = 24,
-			Width = 50,
-			Height = 50,
-			HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-			VerticalAlignment = System.Windows.VerticalAlignment.Center,
-			Margin = new Thickness(10, 0, 0, 0),
-			Padding = new Thickness(0),
-			Visibility = currentIndex < allScreenshots.Count - 1 ? Visibility.Visible : Visibility.Hidden
-		};
-
-		System.Windows.Controls.Button rightArrow = new System.Windows.Controls.Button
-		{
-			Content = "→",
-			FontSize = 24,
-			Width = 50,
-			Height = 50,
-			HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-			VerticalAlignment = System.Windows.VerticalAlignment.Center,
-			Margin = new Thickness(0, 0, 10, 0),
-			Padding = new Thickness(0),
-			Visibility = currentIndex > 0 ? Visibility.Visible : Visibility.Hidden
-		};
-
-			Action updateZoom = () =>
-			{
-				if (baseImageWidth > 0 && baseImageHeight > 0)
-				{
-					double scaledWidth = baseImageWidth * baseFitScale * zoomLevel;
-					double scaledHeight = baseImageHeight * baseFitScale * zoomLevel;
-					fullImage.Width = scaledWidth;
-					fullImage.Height = scaledHeight;
-					zoomLevelText.Text = $"{(int)(zoomLevel * 100)}%";
-				}
-			};
-
-			Action? updateZoomWithCursor = null;
-			Action<double, System.Windows.Point?>? zoomToPoint = null;
-
-			Action<int> loadImage = (index) =>
-			{
-				if (index < 0 || index >= allScreenshots.Count) return;
-
-				var screenshot = allScreenshots[index];
-				if (!File.Exists(screenshot.FilePath)) return;
-
-				BitmapImage fullResolutionImage = new BitmapImage();
-				fullResolutionImage.BeginInit();
-				fullResolutionImage.UriSource = new Uri(screenshot.FilePath);
-				fullResolutionImage.CacheOption = BitmapCacheOption.OnLoad;
-				fullResolutionImage.EndInit();
-				fullResolutionImage.Freeze();
-
-				fullImage.Source = fullResolutionImage;
-				imageWindow.Title = $"Screenshot - {Path.GetFileName(screenshot.FilePath)}";
-
-				leftArrow.Visibility = index < allScreenshots.Count - 1 ? Visibility.Visible : Visibility.Hidden;
-				rightArrow.Visibility = index > 0 ? Visibility.Visible : Visibility.Hidden;
-
-				zoomLevel = 1.0;
-
-				// Calc image size and fit scale
-				if (fullResolutionImage.Width > 0 && fullResolutionImage.Height > 0)
-				{
-					baseImageWidth = fullResolutionImage.Width;
-					baseImageHeight = fullResolutionImage.Height;
-
-					double windowWidth = imageWindow.ActualWidth;
-					double windowHeight = imageWindow.ActualHeight;
-
-					double widthRatio = windowWidth / baseImageWidth;
-					double heightRatio = windowHeight / baseImageHeight;
-					baseFitScale = Math.Min(widthRatio, heightRatio);
-
-					if (baseFitScale > 1.0)
-					{
-						baseFitScale = 1.0;
-					}
-
-					updateZoomWithCursor?.Invoke();
-				}
-			};
-
-			exitButton.Click += (s, args) =>
-			{
-				imageWindow.Close();
-			};
-
-			int currentImageIndex = currentIndex;
-			leftArrow.Click += (s, args) =>
-			{
-				if (currentImageIndex < allScreenshots.Count - 1)
-				{
-					currentImageIndex++;
-					loadImage(currentImageIndex);
-				}
-			};
-
-			rightArrow.Click += (s, args) =>
-			{
-				if (currentImageIndex > 0)
-				{
-					currentImageIndex--;
-					loadImage(currentImageIndex);
-				}
-			};
-
-			System.Windows.Controls.Grid topPanel = new System.Windows.Controls.Grid
-			{
-				Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
-			};
-			topPanel.Children.Add(exitButton);
-			topPanel.Children.Add(zoomPanel);
-
-			System.Windows.Controls.Grid imageGrid = new System.Windows.Controls.Grid();
-			imageGrid.Children.Add(fullImage);
-
-			ScrollViewer scrollViewer = new ScrollViewer
-			{
-				HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-				VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-				Content = imageGrid,
-				Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
-			};
-
-			System.Windows.Controls.Grid viewerOverlay = new System.Windows.Controls.Grid();
-			viewerOverlay.Children.Add(scrollViewer);
-			viewerOverlay.Children.Add(leftArrow);
-			viewerOverlay.Children.Add(rightArrow);
-
-			Action updateCursor = () =>
-			{
-				if (baseImageWidth > 0 && baseImageHeight > 0 && scrollViewer != null)
-				{
-					double scaledWidth = baseImageWidth * baseFitScale * zoomLevel;
-					double scaledHeight = baseImageHeight * baseFitScale * zoomLevel;
-					bool canScroll = scaledWidth > scrollViewer.ViewportWidth || scaledHeight > scrollViewer.ViewportHeight;
-					imageGrid.Cursor = canScroll ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow;
-				}
-			};
-
-			updateZoomWithCursor = () =>
-			{
-				updateZoom();
-				updateCursor();
-			};
-
-			zoomToPoint = (newZoomLevel, zoomPoint) =>
-			{
-				if (zoomPoint.HasValue && baseImageWidth > 0 && baseImageHeight > 0 && scrollViewer != null)
-				{
-					double oldZoom = zoomLevel;
-					double oldScaledWidth = baseImageWidth * baseFitScale * oldZoom;
-					double oldScaledHeight = baseImageHeight * baseFitScale * oldZoom;
-
-					double relativeX = (scrollViewer.HorizontalOffset + zoomPoint.Value.X) / oldScaledWidth;
-					double relativeY = (scrollViewer.VerticalOffset + zoomPoint.Value.Y) / oldScaledHeight;
-
-					zoomLevel = newZoomLevel;
-					updateZoom();
-					updateCursor();
-
-					double newScaledWidth = baseImageWidth * baseFitScale * zoomLevel;
-					double newScaledHeight = baseImageHeight * baseFitScale * zoomLevel;
-
-					double newX = (relativeX * newScaledWidth) - zoomPoint.Value.X;
-					double newY = (relativeY * newScaledHeight) - zoomPoint.Value.Y;
-
-					scrollViewer.ScrollToHorizontalOffset(Math.Max(0, newX));
-					scrollViewer.ScrollToVerticalOffset(Math.Max(0, newY));
-				}
-				else
-				{
-					zoomLevel = newZoomLevel;
-					updateZoomWithCursor();
-				}
-			};
-
-			zoomInButton.Click += (s, args) =>
-			{
-				if (scrollViewer != null && zoomToPoint != null)
-				{
-					System.Windows.Point centerPoint = new System.Windows.Point(
-						scrollViewer.ViewportWidth / 2,
-						scrollViewer.ViewportHeight / 2);
-					zoomToPoint(Math.Min(zoomLevel * 1.2, 10.0), centerPoint);
-				}
-				else
-				{
-					zoomLevel = Math.Min(zoomLevel * 1.2, 10.0);
-					updateZoomWithCursor?.Invoke();
-				}
-			};
-
-			zoomOutButton.Click += (s, args) =>
-			{
-				if (scrollViewer != null && zoomToPoint != null)
-				{
-					System.Windows.Point centerPoint = new System.Windows.Point(
-						scrollViewer.ViewportWidth / 2,
-						scrollViewer.ViewportHeight / 2);
-					zoomToPoint(Math.Max(zoomLevel / 1.2, 0.1), centerPoint);
-				}
-				else
-				{
-					zoomLevel = Math.Max(zoomLevel / 1.2, 0.1);
-					updateZoomWithCursor?.Invoke();
-				}
-			};
-
-			zoomResetButton.Click += (s, args) =>
-			{
-				if (scrollViewer != null && zoomToPoint != null)
-				{
-					System.Windows.Point centerPoint = new System.Windows.Point(
-						scrollViewer.ViewportWidth / 2,
-						scrollViewer.ViewportHeight / 2);
-					zoomToPoint(1.0, centerPoint);
-				}
-				else
-				{
-					zoomLevel = 1.0;
-					updateZoomWithCursor?.Invoke();
-				}
-			};
-
-			imageGrid.MouseWheel += (s, args) =>
-			{
-				if (zoomToPoint != null && scrollViewer != null)
-				{
-					System.Windows.Point mousePos = args.GetPosition(scrollViewer);
-					double newZoom;
-					if (args.Delta > 0)
-					{
-						newZoom = Math.Min(zoomLevel * 1.1, 10.0);
-					}
-					else
-					{
-						newZoom = Math.Max(zoomLevel / 1.1, 0.1);
-					}
-					zoomToPoint(newZoom, mousePos);
-				}
-				else
-				{
-					if (args.Delta > 0)
-					{
-						zoomLevel = Math.Min(zoomLevel * 1.1, 10.0);
-					}
-					else
-					{
-						zoomLevel = Math.Max(zoomLevel / 1.1, 0.1);
-					}
-					updateZoomWithCursor?.Invoke();
-				}
-				args.Handled = true;
-			};
-
-			bool isDragging = false;
-			System.Windows.Point lastMousePosition = new System.Windows.Point();
-
-			Func<bool> isImageScrollable = () =>
-			{
-				if (baseImageWidth > 0 && baseImageHeight > 0)
-				{
-					double scaledWidth = baseImageWidth * baseFitScale * zoomLevel;
-					double scaledHeight = baseImageHeight * baseFitScale * zoomLevel;
-					return scaledWidth > scrollViewer.ViewportWidth || scaledHeight > scrollViewer.ViewportHeight;
-				}
-				return false;
-			};
-
-			imageGrid.MouseDown += (s, args) =>
-			{
-				if (args.LeftButton == System.Windows.Input.MouseButtonState.Pressed && isImageScrollable())
-				{
-					isDragging = true;
-					lastMousePosition = args.GetPosition(scrollViewer);
-					imageGrid.CaptureMouse();
-					args.Handled = true;
-				}
-			};
-
-			imageGrid.MouseMove += (s, args) =>
-			{
-				updateCursor();
-
-				if (isDragging && args.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
-				{
-					System.Windows.Point currentPosition = args.GetPosition(scrollViewer);
-					double deltaX = lastMousePosition.X - currentPosition.X;
-					double deltaY = lastMousePosition.Y - currentPosition.Y;
-
-					scrollViewer.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset + deltaX);
-					scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + deltaY);
-
-					lastMousePosition = currentPosition;
-					args.Handled = true;
-				}
-			};
-
-			imageGrid.MouseUp += (s, args) =>
-			{
-				if (isDragging)
-				{
-					isDragging = false;
-					imageGrid.ReleaseMouseCapture();
-					args.Handled = true;
-				}
-			};
-
-			imageGrid.MouseLeave += (s, args) =>
-			{
-				if (isDragging)
-				{
-					isDragging = false;
-					imageGrid.ReleaseMouseCapture();
-				}
-			};
-
-			System.Windows.Controls.Grid mainGrid = new System.Windows.Controls.Grid
-			{
-				Background = (System.Windows.Media.Brush)System.Windows.Application.Current.TryFindResource("BackgroundBrush") ?? System.Windows.Media.Brushes.White
-			};
-			mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
-			mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
-
-			System.Windows.Controls.Grid.SetRow(topPanel, 0);
-			System.Windows.Controls.Grid.SetRow(viewerOverlay, 1);
-
-			mainGrid.Children.Add(topPanel);
-			mainGrid.Children.Add(viewerOverlay);
-
-			imageWindow.Content = mainGrid;
-			imageWindow.Owner = System.Windows.Application.Current.MainWindow;
-			imageWindow.ShowActivated = true;
-
-			loadImage(currentIndex);
-
-			imageWindow.Loaded += (s, e) =>
-			{
-				imageWindow.Activate();
-				imageWindow.Focus();
-			};
-
-			imageWindow.SizeChanged += (s, e) =>
-			{
-				if (fullImage.Source is BitmapImage currentImage && currentImage.Width > 0 && currentImage.Height > 0)
-				{
-					double windowWidth = imageWindow.ActualWidth;
-					double windowHeight = imageWindow.ActualHeight - topPanel.ActualHeight;
-					double imageWidth = currentImage.Width;
-					double imageHeight = currentImage.Height;
-
-					double widthRatio = windowWidth / imageWidth;
-					double heightRatio = windowHeight / imageHeight;
-					baseFitScale = Math.Min(widthRatio, heightRatio);
-
-					if (baseFitScale > 1.0)
-					{
-						baseFitScale = 1.0;
-					}
-
-					baseImageWidth = imageWidth;
-					baseImageHeight = imageHeight;
-					updateZoomWithCursor();
-				}
-			};
-
-			imageWindow.Show();
-		}
-	}
-
-	public class InverseBooleanToVisibilityConverter : IValueConverter
-	{
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			if (value is bool boolValue)
-			{
-				return !boolValue ? Visibility.Visible : Visibility.Collapsed;
-			}
-			return Visibility.Visible;
-		}
-
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			if (value is Visibility visibility)
-			{
-				return visibility != Visibility.Visible;
-			}
-			return false;
-		}
-	}
+        private async Task NavigateToAsync(DateTime date, DateTime? day = null)
+        {
+            _currentYear = date.Year;
+            _currentMonth = date.Month;
+            _selectedDay = day;
+            _pageIndex = 0;
+            UpdateDateControls();
+            await LoadPhotosAsync();
+        }
+
+        private async void PrevMonthButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (CurrentMonth > EarliestMonth) await NavigateToAsync(CurrentMonth.AddMonths(-1));
+        }
+        private async void NextMonthButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (CurrentMonth < LatestMonth) await NavigateToAsync(CurrentMonth.AddMonths(1));
+        }
+        private async void TodayButton_Click(object sender, RoutedEventArgs e) => await NavigateToAsync(DateTime.Today, DateTime.Today);
+        private async void LatestButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_snapshot?.Screenshots.MaxBy(photo => photo.DateTaken) is { } latest)
+            {
+                _updatingControls = true;
+                CaptureFilterComboBox.SelectedIndex = 0;
+                SortComboBox.SelectedIndex = 0;
+                _updatingControls = false;
+                await NavigateToAsync(latest.DateTaken);
+            }
+        }
+        private async void RefreshButton_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
+        private async void ClearDayButton_Click(object sender, RoutedEventArgs e) => await NavigateToAsync(CurrentMonth);
+        private async void MonthComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_updatingControls && MonthComboBox.SelectedValue is int month)
+                await NavigateToAsync(new DateTime(_currentYear, month, 1));
+        }
+        private async void YearComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_updatingControls && YearComboBox.SelectedItem is int year)
+                await NavigateToAsync(new DateTime(year, _currentMonth, 1));
+        }
+        private async void Filter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingControls || _snapshot == null) return;
+            _pageIndex = 0;
+            await LoadPhotosAsync();
+        }
+        private async void PreviousPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_pageIndex > 0) { _pageIndex--; await LoadPhotosAsync(); }
+        }
+        private async void NextPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            if ((_pageIndex + 1) * PageSize < _visiblePhotos.Count) { _pageIndex++; await LoadPhotosAsync(); }
+        }
+        private void PhotoButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: GalleryPhotoItem photo }) OpenImageInViewer(photo.FilePath);
+        }
+        private static string? GetFilePathFromContext(object sender) => sender is MenuItem { Parent: ContextMenu menu }
+            && menu.PlacementTarget is FrameworkElement { DataContext: GalleryPhotoItem photo } ? photo.FilePath : null;
+
+        private void ContextMenu_Open_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetFilePathFromContext(sender) is { } path) OpenImageInViewer(path);
+        }
+        private void ContextMenu_OpenInExplorer_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetFilePathFromContext(sender) is not { } path) return;
+            try { Process.Start("explorer.exe", $"/select,\"{path}\""); }
+            catch (Exception ex) { ShowActionError("open this photo in File Explorer", ex); }
+        }
+        private async void ContextMenu_CopyImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetFilePathFromContext(sender) is not { } path) return;
+            try
+            {
+                var image = await Task.Run(() => GalleryImageLoader.Load(path));
+                Clipboard.SetImage(image);
+                GalleryStatusText.Text = "Photo copied to the clipboard.";
+            }
+            catch (Exception ex) { ShowActionError("copy this photo", ex); }
+        }
+        private void ContextMenu_CopyPath_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetFilePathFromContext(sender) is not { } path) return;
+            try { Clipboard.SetText(path); GalleryStatusText.Text = "File location copied to the clipboard."; }
+            catch (Exception ex) { ShowActionError("copy this file location", ex); }
+        }
+        private async void ContextMenu_Delete_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetFilePathFromContext(sender) is not { } path) return;
+            if (MessageBox.Show($"Permanently delete this screenshot?\n\n{Path.GetFileName(path)}\n\nThis cannot be undone.", "Delete screenshot",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+            try { File.Delete(path); await RefreshAsync(); }
+            catch (Exception ex) { ShowActionError("delete this photo", ex); }
+        }
+        private static void ShowActionError(string action, Exception ex) => MessageBox.Show($"PictureDay couldn't {action}.\n\n{ex.Message}", "Photo unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
+        private void OpenImageInViewer(string filePath)
+        {
+            var index = _visiblePhotos.FindIndex(photo => string.Equals(photo.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+            if (index < 0) return;
+            var viewer = new PhotoViewerWindow(_visiblePhotos.ToList(), index) { Owner = Window.GetWindow(this) };
+            viewer.Show();
+        }
+        private sealed record MonthOption(int MonthNumber, string MonthName);
+    }
 }
-

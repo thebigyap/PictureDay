@@ -55,10 +55,15 @@ _Example screenshot captured by PictureDay, demonstrating the application's dail
 
 ### Gallery & Management
 
+-   **Responsive Gallery**: Background library scans and thumbnail decoding keep navigation responsive. Each page has at most 24 photo cards, with a 96-preview cache.
+-   **Find a Moment**: Jump to Today or Latest, filter manual or daily captures, sort newest or oldest first, or select a day in the activity heatmap.
+-   **Clear Feedback**: Loading, empty-folder, unreadable-folder, and individual image-error states explain what is happening.
+-   **Resizable Window**: Resize or maximize PictureDay; the sidebar shows your daily capture status.
+
 -   **Photo Gallery**: Browse screenshots organized by month and year
 -   **Thumbnail View**: Quick preview of all screenshots
--   **Full-Screen Viewer**: Click any thumbnail to view full-size image with navigation arrows to browse through images
--   **Zoom Controls**: Zoom in/out with mouse wheel or +/- buttons, with zoom level display (10% to 1000%) and reset button
+-   **Photo Viewer**: Open any photo card to view the full-size image with navigation arrows to browse through images
+-   **Zoom Controls**: Zoom in/out with mouse wheel or +/- buttons, with zoom level display (5% to 1000%), Fit, and original-size controls
 -   **Pan & Drag**: Click and drag to pan around zoomed images with intuitive hand cursor
 -   **Smart Zooming**: Zoom centers on cursor position for precise navigation
 -   **Context Menu**: Right-click any image for quick actions (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
@@ -92,7 +97,7 @@ You can take screenshots manually using:
 
 -   **Button**: Click "Take Screenshot Now" in the main window
 -   **System Tray**: Right-click the system tray icon → "Take Screenshot Now"
--   **Keyboard**: Press `F12` or `Ctrl+S` when the main window is focused
+-   **Keyboard**: Press `F12` in the main window, or `Ctrl+S` in Gallery
 
 ### Viewing Screenshots
 
@@ -101,10 +106,10 @@ You can take screenshots manually using:
 3. Use the month/year dropdowns or arrow buttons to browse
 4. Click any thumbnail to view the full-size image
 5. Use the left/right arrow buttons in the image viewer to navigate between images
-6. **Zoom Controls**: Use mouse wheel to zoom in/out (zooms toward cursor position), or use the +/- buttons with zoom level display. Click "Reset" to return to 100% zoom
+6. **Zoom Controls**: Use mouse wheel to zoom in/out (zooms toward cursor position), or use the +/- buttons with zoom level display. Click "100%" for original size or "Fit" to fit the window
 7. **Pan & Drag**: When zoomed in, click and drag to pan around the image (cursor changes to hand when panning is available)
 8. Right-click any image for context menu options (Open, Open in File Explorer, Copy Image, Copy File Location, Delete)
-9. Click "Exit" button to close the image viewer
+9. Click "Close" or press Escape to close the image viewer
 
 ### Configuration
 
@@ -151,8 +156,9 @@ Access settings via:
 ## Privacy & Security
 
 -   Screenshots are stored locally on your computer
--   Privacy filter prevents screenshots when sensitive applications are detected
--   No data is sent to external servers
+-   Privacy filters block captures when listed applications are running, including background apps, and skip locked or disconnected sessions
+-   Private browsing detection uses visible window titles and is best effort; add sensitive applications to the block list for broader coverage
+-   Screenshots remain local; the updater contacts GitHub to check for releases
 -   All processing happens on your local machine
 
 ## File Organization
@@ -181,8 +187,10 @@ Settings are stored in:
 ## Keyboard Shortcuts
 
 -   `F12` - Take screenshot now
--   `Ctrl+S` - Take screenshot now
--   `Ctrl+W` - Close window (minimizes to tray)
+-   `Ctrl+S` - Save changes in Settings; take a screenshot in Gallery
+-   `Ctrl+W` - Hide the main window to the system tray
+-   `F5` - Refresh the gallery when it has keyboard focus
+-   Viewer: `Left` / `Right` browse, `Home` / `End` jump to the first / last photo, `+` / `-` zoom, `0` fit, `1` original size, `Escape` close
 
 ## Troubleshooting
 
@@ -222,6 +230,25 @@ dotnet restore
 dotnet build
 dotnet run
 ```
+
+### Regression Checks
+
+Run the standalone check harness on Windows:
+
+```powershell
+dotnet run --project Tests/PictureDay.Checks.csproj -c Release
+```
+
+It checks photo preservation, filename collisions, dates and streaks, atomic settings saves and recovery, scheduler transitions, gallery navigation and cancellation, corrupt-image recovery, and thumbnail reuse. It also renders the light/dark gallery and compact settings to `artifacts/checks/`. Fixtures use that folder; the harness does not start the real scheduler, tray icon, updater, or screenshot capture.
+
+If the running app locks the normal Release folder, use a separate output:
+
+```powershell
+dotnet build Tests/PictureDay.Checks.csproj -c Release -p:OutputPath=bin/VerifiedRelease/
+dotnet Tests/bin/VerifiedRelease/PictureDay.Checks.dll
+```
+
+Native screen capture, restoring desktop windows, tray interaction, and actual lock/sleep transitions still need a manual Windows smoke test.
 
 ### Building Release Package
 

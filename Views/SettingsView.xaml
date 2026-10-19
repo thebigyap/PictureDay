@@ -28,7 +28,7 @@
 					<StackPanel VerticalAlignment="Center">
 						<TextBlock Text="Settings" Style="{StaticResource LargeTitleText}"/>
 						<TextBlock Text="Tune how PictureDay captures and stores your day"
-								   Style="{StaticResource CaptionText}" Margin="0,2,0,0"/>
+								   Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"/>
 					</StackPanel>
 					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
 						<Button Content="Cancel" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Click="CancelButton_Click"/>
@@ -172,6 +172,8 @@
 					<StackPanel>
 						<TextBlock Text="PRIVACY FILTER" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,6"/>
 						<TextBlock Text="Screenshots are blocked whenever any of these applications are running."
+								   Style="{StaticResource CaptionText}" Margin="0,0,0,12" TextWrapping="Wrap"/>
+						<TextBlock Text="Private browsing detection uses window titles and may miss some browsers. Add sensitive apps here for broader protection. Locked and disconnected sessions are also skipped."
 								   Style="{StaticResource CaptionText}" Margin="0,0,0,12" TextWrapping="Wrap"/>
 
 						<ListBox x:Name="BlockedAppsListBox" Height="150" Margin="0,0,0,12"/>

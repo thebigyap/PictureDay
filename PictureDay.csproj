@@ -24,6 +24,9 @@
 </ItemGroup>
 
 <ItemGroup>
+	<Compile Remove="Updater\**\*.cs;Tests\**\*.cs" />
+	<Page Remove="Tests\**\*.xaml" />
+	<EmbeddedResource Remove="Tests\**\*" />
 	<ProjectReference Include="Updater\PictureDayUpdater.csproj" />
 </ItemGroup>
 
@@ -41,7 +44,8 @@
 
 <Target Name="CopyUpdaterFiles" AfterTargets="Build" DependsOnTargets="ResolveProjectReferences">
 	<ItemGroup>
-		<UpdaterFiles Include="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\$(TargetFramework)\PictureDayUpdater.*" />
+		<UpdaterAssembly Include="@(_ResolvedProjectReferencePaths)" Condition="'%(_ResolvedProjectReferencePaths.Filename)' == 'PictureDayUpdater'" />
+		<UpdaterFiles Include="%(UpdaterAssembly.RootDir)%(UpdaterAssembly.Directory)PictureDayUpdater.*" />
 	</ItemGroup>
 	<Copy SourceFiles="@(UpdaterFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
 </Target>

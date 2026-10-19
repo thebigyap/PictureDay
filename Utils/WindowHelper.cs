@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -74,7 +74,7 @@ namespace PictureDay.Utils
 			{
 				try
 				{
-					Process process = Process.GetProcessById((int)processId);
+					using Process process = Process.GetProcessById((int)processId);
 					return process.ProcessName;
 				}
 				catch
@@ -101,4 +101,3 @@ namespace PictureDay.Utils
 		}
 	}
 }
-

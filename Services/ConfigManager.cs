@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using PictureDay.Models;
@@ -12,149 +13,218 @@ namespace PictureDay.Services
 	public class ConfigManager
 	{
 		private readonly string _configPath;
+		private readonly bool _updateStartupRegistry;
+		private readonly object _configLock = new object();
 		private AppConfig _config = null!;
-		private const string RegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+		private bool _loadedFromBackup;
+		private const string StartupRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
 		private const string AppName = "PictureDay";
 
 		public AppConfig Config => _config;
 
-		public ConfigManager()
+		public ConfigManager(string? configPath = null, bool updateStartupRegistry = true)
 		{
-			string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-			string configDir = Path.Combine(appDataPath, "PictureDay");
-			Directory.CreateDirectory(configDir);
-			_configPath = Path.Combine(configDir, "config.json");
+			_configPath = Path.GetFullPath(configPath ?? Path.Combine(
+				Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PictureDay", "config.json"));
+			_updateStartupRegistry = updateStartupRegistry;
 			LoadConfig();
 			UpdateStartupRegistry();
 		}
 
 		public void LoadConfig()
 		{
-			if (File.Exists(_configPath))
+			lock (_configLock)
 			{
-				try
+				_loadedFromBackup = false;
+				AppConfig? loaded = ReadConfig(_configPath);
+				if (loaded == null)
 				{
-					string json = File.ReadAllText(_configPath);
-					_config = JsonConvert.DeserializeObject<AppConfig>(json) ?? new AppConfig();
-					System.Diagnostics.Debug.WriteLine($"Config loaded - Theme: {_config.Theme}, BlockedApps: {_config.BlockedApplications.Count}");
-					Console.WriteLine($"Config loaded - Theme: {_config.Theme}, BlockedApps: {_config.BlockedApplications.Count}");
+					loaded = ReadConfig(_configPath + ".bak");
+					_loadedFromBackup = loaded != null;
+					if (_loadedFromBackup)
+					{
+						Console.WriteLine("Recovered configuration from the last saved backup.");
+					}
 				}
-				catch (Exception ex)
-				{
-					System.Diagnostics.Debug.WriteLine($"Error loading config: {ex.Message}\nStack trace: {ex.StackTrace}");
-					Console.WriteLine($"Error loading config: {ex.Message}");
-					_config = new AppConfig();
-				}
+				_config = loaded ?? new AppConfig();
+				NormalizeConfig(_config);
 			}
-			else
-			{
-				System.Diagnostics.Debug.WriteLine($"Config file not found at: {_configPath}, using defaults");
-				Console.WriteLine($"Config file not found at: {_configPath}, using defaults");
-				_config = new AppConfig();
-			}
+		}
 
-			if (string.IsNullOrEmpty(_config.ScreenshotDirectory))
+		private static AppConfig? ReadConfig(string path)
+		{
+			if (!File.Exists(path)) return null;
+			try
 			{
-				_config.ScreenshotDirectory = Path.Combine(
-					Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
-					"PictureDay");
+				return JsonConvert.DeserializeObject<AppConfig>(File.ReadAllText(path),
+					new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"Error loading configuration {path}: {ex.Message}");
+				Console.WriteLine($"Error loading configuration: {ex.Message}");
+				return null;
 			}
 		}
 
 		public void SaveConfig()
 		{
-			try
+			lock (_configLock)
 			{
-				string? configDir = Path.GetDirectoryName(_configPath);
-				if (!string.IsNullOrEmpty(configDir) && !Directory.Exists(configDir))
-				{
-					Directory.CreateDirectory(configDir);
-				}
-
-				string json = JsonConvert.SerializeObject(_config, Formatting.Indented);
-				File.WriteAllText(_configPath, json);
-				UpdateStartupRegistry();
-				System.Diagnostics.Debug.WriteLine($"Config saved successfully to: {_configPath}");
-				Console.WriteLine($"Config saved successfully to: {_configPath}");
-
-				if (File.Exists(_configPath))
-				{
-					string savedJson = File.ReadAllText(_configPath);
-					var verifyConfig = JsonConvert.DeserializeObject<AppConfig>(savedJson);
-					if (verifyConfig != null)
-					{
-						System.Diagnostics.Debug.WriteLine($"Config verified - Theme: {verifyConfig.Theme}, BlockedApps: {verifyConfig.BlockedApplications.Count}");
-						Console.WriteLine($"Config verified - Theme: {verifyConfig.Theme}, BlockedApps: {verifyConfig.BlockedApplications.Count}");
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				string errorMsg = $"Error saving config: {ex.Message}\nStack trace: {ex.StackTrace}";
-				System.Diagnostics.Debug.WriteLine(errorMsg);
-				Console.WriteLine(errorMsg);
-				System.Windows.MessageBox.Show($"Failed to save configuration:\n{ex.Message}\n\nPath: {_configPath}",
-					"Configuration Error",
-					System.Windows.MessageBoxButton.OK,
-					System.Windows.MessageBoxImage.Warning);
+				SaveConfig(_config);
 			}
 		}
 
+		public void SaveConfig(AppConfig config, bool preserveSchedule = false)
+		{
+			ArgumentNullException.ThrowIfNull(config);
+			lock (_configLock)
+			{
+				// Stage a copy: failed validation or disk writes must not replace active settings.
+				var candidate = JsonConvert.DeserializeObject<AppConfig>(JsonConvert.SerializeObject(config))
+					?? throw new JsonSerializationException("Configuration cannot be empty.");
+				if (preserveSchedule)
+				{
+					candidate.TodayScheduledTime = _config.TodayScheduledTime;
+					candidate.ScheduledTimeDate = _config.ScheduledTimeDate;
+				}
+				NormalizeConfig(candidate);
+				string configDirectory = Path.GetDirectoryName(_configPath)!;
+				Directory.CreateDirectory(configDirectory);
+				string temporaryPath = Path.Combine(configDirectory, $".config-{Guid.NewGuid():N}.tmp");
+				try
+				{
+					using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write,
+						FileShare.None, 4096, FileOptions.WriteThrough))
+					{
+						using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 4096, leaveOpen: true))
+						{
+							writer.Write(JsonConvert.SerializeObject(candidate, Formatting.Indented));
+						}
+						stream.Flush(flushToDisk: true);
+					}
+
+					if (File.Exists(_configPath))
+					{
+						// Keep a known-good backup when recovering from a damaged primary file.
+						File.Replace(temporaryPath, _configPath, _loadedFromBackup ? null : _configPath + ".bak");
+					}
+					else
+					{
+						File.Move(temporaryPath, _configPath);
+					}
+
+					_config = candidate;
+					_loadedFromBackup = false;
+					UpdateStartupRegistry();
+				}
+				finally
+				{
+					try
+					{
+						if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+					}
+					catch (Exception ex)
+					{
+						Debug.WriteLine($"Could not remove temporary configuration: {ex.Message}");
+					}
+				}
+			}
+		}
+
+		public void SetScheduledTime(TimeSpan time, DateTime date)
+		{
+			if (time < TimeSpan.Zero || time >= TimeSpan.FromDays(1))
+			{
+				throw new ArgumentOutOfRangeException(nameof(time), "Scheduled time must fall within one day.");
+			}
+			lock (_configLock)
+			{
+				var candidate = JsonConvert.DeserializeObject<AppConfig>(JsonConvert.SerializeObject(_config))!;
+				candidate.TodayScheduledTime = time;
+				candidate.ScheduledTimeDate = date.Date;
+				SaveConfig(candidate);
+			}
+		}
+
+		private static void NormalizeConfig(AppConfig config)
+		{
+			config.BlockedApplications = (config.BlockedApplications ?? new List<string>())
+				.Where(app => !string.IsNullOrWhiteSpace(app))
+				.Select(app => app.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			if (string.IsNullOrWhiteSpace(config.ScreenshotDirectory))
+			{
+				config.ScreenshotDirectory = Path.Combine(
+					Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "PictureDay");
+			}
+			config.Quality = Math.Clamp(config.Quality, 1, 100);
+			config.ImageFormat = string.Equals(config.ImageFormat, "PNG", StringComparison.OrdinalIgnoreCase) ? "PNG" : "JPEG";
+			config.Theme = string.Equals(config.Theme, "Dark", StringComparison.OrdinalIgnoreCase) ? "Dark" : "Light";
+			config.SelectedMonitorIndex = Math.Max(-1, config.SelectedMonitorIndex);
+			if (!Enum.IsDefined(config.ScheduleMode)) config.ScheduleMode = ScheduleMode.Random;
+			config.TodayScheduledTime = NormalizeTime(config.TodayScheduledTime);
+			config.FixedScheduledTime = NormalizeTime(config.FixedScheduledTime);
+			config.ScheduleRangeStart = NormalizeTime(config.ScheduleRangeStart);
+			config.ScheduleRangeEnd = NormalizeTime(config.ScheduleRangeEnd);
+			if (!config.TodayScheduledTime.HasValue) config.ScheduledTimeDate = null;
+		}
+
+		private static TimeSpan? NormalizeTime(TimeSpan? time) => time.HasValue
+			&& time.Value >= TimeSpan.Zero && time.Value < TimeSpan.FromDays(1) ? time : null;
+
 		public void AddBlockedApplication(string processName)
 		{
-			if (!string.IsNullOrWhiteSpace(processName) &&
-				!_config.BlockedApplications.Contains(processName, StringComparer.OrdinalIgnoreCase))
+			if (string.IsNullOrWhiteSpace(processName)) return;
+			lock (_configLock)
 			{
-				_config.BlockedApplications.Add(processName);
+				string normalized = processName.Trim();
+				if (!_config.BlockedApplications.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+				{
+					_config.BlockedApplications.Add(normalized);
+				}
 			}
 		}
 
 		public void RemoveBlockedApplication(string processName)
 		{
-			_config.BlockedApplications.RemoveAll(x =>
-				x.Equals(processName, StringComparison.OrdinalIgnoreCase));
+			lock (_configLock)
+			{
+				_config.BlockedApplications.RemoveAll(x =>
+					x.Equals(processName?.Trim(), StringComparison.OrdinalIgnoreCase));
+			}
 		}
 
 		private void UpdateStartupRegistry()
 		{
+			if (!_updateStartupRegistry) return;
 			try
 			{
-				using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RegistryKey, true);
-				if (key == null)
+				using RegistryKey? key = Registry.CurrentUser.CreateSubKey(StartupRegistryPath, true);
+				if (key == null) return;
+				if (!_config.StartWithWindows)
 				{
-					System.Diagnostics.Debug.WriteLine("Could not open registry key for startup");
+					key.DeleteValue(AppName, false);
 					return;
 				}
 
-				string? appPath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+				string? appPath = Environment.ProcessPath;
 				if (string.IsNullOrEmpty(appPath))
 				{
-					System.Diagnostics.Debug.WriteLine("Could not get executable path");
-					return;
+					using Process process = Process.GetCurrentProcess();
+					appPath = process.MainModule?.FileName;
 				}
-
+				if (string.IsNullOrEmpty(appPath)) return;
 				if (!appPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
 				{
-					string directory = Path.GetDirectoryName(appPath) ?? "";
-					string exeName = Path.GetFileNameWithoutExtension(appPath) + ".exe";
-					appPath = Path.Combine(directory, exeName);
+					appPath = Path.ChangeExtension(appPath, ".exe");
 				}
-
-				if (_config.StartWithWindows)
-				{
-					key.SetValue(AppName, $"\"{appPath}\"");
-				}
-				else
-				{
-					if (key.GetValue(AppName) != null)
-					{
-						key.DeleteValue(AppName, false);
-					}
-				}
+				key.SetValue(AppName, $"\"{appPath}\"");
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"Error updating registry: {ex.Message}");
+				Debug.WriteLine($"Error updating startup registry: {ex.Message}");
 				Console.WriteLine($"Warning: Could not update startup registry: {ex.Message}");
 			}
 		}

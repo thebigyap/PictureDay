@@ -49,6 +49,7 @@ namespace PictureDay.Views
 			_isInitialized = true;
 			SetupDayCheckTimer();
 			Unloaded += SettingsView_Unloaded;
+			Loaded += (s, e) => _dayCheckTimer?.Start();
 
 			// Track edits on controls that have no dedicated handler
 			StartWithWindowsCheckBox.Click += (s, e) => MarkDirty();
@@ -76,22 +77,22 @@ namespace PictureDay.Views
 			{
 				dailyScheduler.PhotosProcessed += (s, e) =>
 				{
-					System.Windows.Application.Current.Dispatcher.Invoke(() =>
+					System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 					{
 						UpdateScheduledTimeDisplay();
 						_lastCheckedDate = _configManager?.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
 						_lastCheckedScheduledTime = _configManager?.Config.TodayScheduledTime;
-					});
+					}));
 				};
 
 				dailyScheduler.ScheduledTimeChanged += (s, e) =>
 				{
-					System.Windows.Application.Current.Dispatcher.Invoke(() =>
+					System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 					{
 						UpdateScheduledTimeDisplay();
 						_lastCheckedDate = _configManager?.Config.ScheduledTimeDate?.Date ?? DateTime.Today;
 						_lastCheckedScheduledTime = _configManager?.Config.TodayScheduledTime;
-					});
+					}));
 				};
 			}
 		}
@@ -217,7 +218,7 @@ namespace PictureDay.Views
 					AllMonitorsRadio.IsChecked = true;
 					MonitorComboBox.IsEnabled = false;
 				}
-				else if (_configManager.Config.SelectedMonitorIndex > 0 &&
+				else if (_configManager.Config.SelectedMonitorIndex >= 0 &&
 						 _configManager.Config.SelectedMonitorIndex < MonitorComboBox.Items.Count)
 				{
 					SpecificMonitorRadio.IsChecked = true;
@@ -529,127 +530,69 @@ namespace PictureDay.Views
 		/// Persists the current form. Returns false (and leaves the user on Settings)
 		/// if validation fails. On success raises <see cref="SettingsSaved"/>.
 		/// </summary>
-		public bool SaveSettings()
-		{
-			if (_configManager == null) return false;
-
-			try
-			{
-				// Save blocked applications
-				_configManager.Config.BlockedApplications.Clear();
-				foreach (string app in _tempBlockedApps)
-				{
-					_configManager.Config.BlockedApplications.Add(app);
-				}
-				System.Diagnostics.Debug.WriteLine($"Saving {_tempBlockedApps.Count} blocked applications: {string.Join(", ", _tempBlockedApps)}");
-				Console.WriteLine($"Saving {_tempBlockedApps.Count} blocked applications: {string.Join(", ", _tempBlockedApps)}");
-
-				_configManager.Config.StartWithWindows = StartWithWindowsCheckBox.IsChecked ?? false;
-
-				string newDirectory = DirectoryTextBox.Text.Trim();
-				if (!string.IsNullOrEmpty(newDirectory) && Directory.Exists(newDirectory))
-				{
-					_configManager.Config.ScreenshotDirectory = newDirectory;
-				}
-
-				_configManager.Config.Quality = (int)QualitySlider.Value;
-
-				if (FormatComboBox.SelectedItem is ComboBoxItem formatItem)
-				{
-					_configManager.Config.ImageFormat = formatItem.Tag?.ToString() ?? "JPEG";
-				}
-
-				if (ThemeComboBox.SelectedItem is ComboBoxItem themeItemSave)
-				{
-					string? newTheme = themeItemSave.Tag?.ToString() ?? "Light";
-					_configManager.Config.Theme = newTheme;
-					ApplyTheme(newTheme);
-				}
-
-				if (AllMonitorsRadio.IsChecked == true)
-				{
-					_configManager.Config.CaptureAllMonitors = true;
-					_configManager.Config.SelectedMonitorIndex = 0;
-				}
-				else if (SpecificMonitorRadio.IsChecked == true)
-				{
-					_configManager.Config.CaptureAllMonitors = false;
-					_configManager.Config.SelectedMonitorIndex = MonitorComboBox.SelectedIndex >= 0 ? MonitorComboBox.SelectedIndex : 0;
-				}
-				else
-				{
-					_configManager.Config.CaptureAllMonitors = false;
-					_configManager.Config.SelectedMonitorIndex = 0;
-				}
-
-				_configManager.Config.DesktopOnly = DesktopOnlyCheckBox.IsChecked ?? false;
-
-				if (ScheduleModeComboBox.SelectedItem is ComboBoxItem item)
-				{
-					string? mode = item.Tag?.ToString();
-					if (mode == "Random")
-					{
-						_configManager.Config.ScheduleMode = ScheduleMode.Random;
-					}
-					else if (mode == "FixedTime")
-					{
-						_configManager.Config.ScheduleMode = ScheduleMode.FixedTime;
-						if (TimeSpan.TryParse(FixedTimeTextBox.Text, out TimeSpan fixedTime))
-						{
-							_configManager.Config.FixedScheduledTime = fixedTime;
-						}
-						else
-						{
-							MessageBox.Show("Invalid fixed time format. Please use HH:mm format (e.g., 14:00).", "Invalid Input",
-								MessageBoxButton.OK, MessageBoxImage.Warning);
-							return false;
-						}
-					}
-					else if (mode == "TimeRange")
-					{
-						_configManager.Config.ScheduleMode = ScheduleMode.TimeRange;
-						if (TimeSpan.TryParse(RangeStartTimeTextBox.Text, out TimeSpan startTime) &&
-							TimeSpan.TryParse(RangeEndTimeTextBox.Text, out TimeSpan endTime))
-						{
-							if (startTime >= endTime)
-							{
-								MessageBox.Show("Start time must be before end time.", "Invalid Input",
-									MessageBoxButton.OK, MessageBoxImage.Warning);
-								return false;
-							}
-							_configManager.Config.ScheduleRangeStart = startTime;
-							_configManager.Config.ScheduleRangeEnd = endTime;
-						}
-						else
-						{
-							MessageBox.Show("Invalid time range format. Please use HH:mm format (e.g., 09:00).", "Invalid Input",
-								MessageBoxButton.OK, MessageBoxImage.Warning);
-							return false;
-						}
-					}
-				}
-
-				_configManager.SaveConfig();
-
-				if (_storageManager != null)
-				{
-					_storageManager.UpdateSettings(_configManager.Config.Quality, _configManager.Config.ImageFormat);
-				}
-
-				UpdateScheduledTimeDisplay();
-
-				_dirty = false;
-				SettingsSaved?.Invoke(this, EventArgs.Empty);
-				return true;
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show($"Error saving settings: {ex.Message}", "Error",
-					MessageBoxButton.OK, MessageBoxImage.Error);
-				return false;
-			}
-		}
-
+        public bool SaveSettings()
+        {
+            if (_configManager == null) return false;
+            try
+            {
+                // Build and validate a separate draft so failed validation cannot change capture behavior.
+                var current = _configManager.Config;
+                var draft = Newtonsoft.Json.JsonConvert.DeserializeObject<AppConfig>(
+                    Newtonsoft.Json.JsonConvert.SerializeObject(current))!;
+                draft.BlockedApplications = new List<string>(_tempBlockedApps);
+                draft.StartWithWindows = StartWithWindowsCheckBox.IsChecked == true;
+                draft.Quality = (int)QualitySlider.Value;
+                draft.ImageFormat = (FormatComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "JPEG";
+                draft.Theme = (ThemeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Light";
+                draft.CaptureAllMonitors = AllMonitorsRadio.IsChecked == true;
+                draft.SelectedMonitorIndex = SpecificMonitorRadio.IsChecked == true ? MonitorComboBox.SelectedIndex : -1;
+                draft.DesktopOnly = DesktopOnlyCheckBox.IsChecked == true;
+                string mode = (ScheduleModeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Random";
+                draft.ScheduleMode = Enum.Parse<ScheduleMode>(mode);
+                if (draft.ScheduleMode == ScheduleMode.FixedTime)
+                {
+                    if (!PictureDay.Utils.ScheduleTimeParser.TryParse(FixedTimeTextBox.Text, out var time))
+                        throw new ArgumentException("Enter a time from 00:00 to 23:59, for example 14:00.");
+                    draft.FixedScheduledTime = time;
+                }
+                else if (draft.ScheduleMode == ScheduleMode.TimeRange)
+                {
+                    if (!PictureDay.Utils.ScheduleTimeParser.TryParse(RangeStartTimeTextBox.Text, out var start) ||
+                        !PictureDay.Utils.ScheduleTimeParser.TryParse(RangeEndTimeTextBox.Text, out var end))
+                        throw new ArgumentException("Enter start and end times from 00:00 to 23:59.");
+                    if (start >= end) throw new ArgumentException("The start time must be before the end time on the same day.");
+                    draft.ScheduleRangeStart = start;
+                    draft.ScheduleRangeEnd = end;
+                }
+                string directory = DirectoryTextBox.Text.Trim();
+                if (string.IsNullOrWhiteSpace(directory) || !Path.IsPathFullyQualified(directory))
+                    throw new ArgumentException("Choose a full path for your photo folder, such as C:\\Pictures\\PictureDay.");
+                draft.ScreenshotDirectory = Path.GetFullPath(directory);
+                Directory.CreateDirectory(draft.ScreenshotDirectory);
+                // Verify permission before persisting a destination the capture service cannot use.
+                using (var probe = new FileStream(Path.Combine(draft.ScreenshotDirectory, $".pictureday-{Guid.NewGuid():N}.tmp"),
+                    FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+                bool scheduleChanged = current.ScheduleMode != draft.ScheduleMode ||
+                    current.FixedScheduledTime != draft.FixedScheduledTime || current.ScheduleRangeStart != draft.ScheduleRangeStart ||
+                    current.ScheduleRangeEnd != draft.ScheduleRangeEnd ||
+                    !string.Equals(current.ScreenshotDirectory, draft.ScreenshotDirectory, StringComparison.OrdinalIgnoreCase);
+                if (scheduleChanged) { draft.TodayScheduledTime = null; draft.ScheduledTimeDate = null; }
+                _configManager.SaveConfig(draft, preserveSchedule: !scheduleChanged);
+                _storageManager?.UpdateSettings(draft.Quality, draft.ImageFormat, draft.ScreenshotDirectory);
+                if (scheduleChanged && System.Windows.Application.Current.Resources["DailyScheduler"] is DailyScheduler scheduler)
+                    scheduler.RequestScheduleRefresh();
+                ApplyTheme(draft.Theme);
+                UpdateScheduledTimeDisplay();
+                _dirty = false;
+                SettingsSaved?.Invoke(this, EventArgs.Empty);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Settings could not be saved.\n\n{ex.Message}", "Check your settings", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+        }
 		/// <summary>Reverts the form to the last saved configuration (including theme).</summary>
 		public void DiscardChanges()
 		{
@@ -694,4 +637,3 @@ namespace PictureDay.Views
 		}
 	}
 }
-

@@ -5,27 +5,28 @@
 	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 	xmlns:local="clr-namespace:PictureDay"
 	xmlns:views="clr-namespace:PictureDay.Views"
+	xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
 	mc:Ignorable="d"
-	Title="PictureDay" Height="680" Width="1020"
+	Title="PictureDay" Height="780" Width="1160" MinHeight="660" MinWidth="980"
 	WindowStartupLocation="CenterScreen"
 	WindowStyle="None"
-	AllowsTransparency="True"
-	Background="Transparent"
-	ResizeMode="NoResize"
+	Background="{DynamicResource WindowBackgroundBrush}"
+	ResizeMode="CanResize"
+	UseLayoutRounding="True"
 	TextOptions.TextFormattingMode="Ideal"
 	FontFamily="{DynamicResource AppFont}"
 	Closing="Window_Closing">
+	<shell:WindowChrome.WindowChrome>
+		<shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0"/>
+	</shell:WindowChrome.WindowChrome>
 
 	<Window.Resources>
 		<BooleanToVisibilityConverter x:Key="BoolToVis"/>
 	</Window.Resources>
 
 	<!-- Outer transparent margin makes room for the soft drop shadow -->
-	<Border Margin="14" CornerRadius="14" Background="{DynamicResource WindowBackgroundBrush}"
+	<Border Margin="0" CornerRadius="0" Background="{DynamicResource WindowBackgroundBrush}"
 			BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1">
-		<Border.Effect>
-			<DropShadowEffect Color="{DynamicResource ShadowColor}" BlurRadius="32" ShadowDepth="6" Opacity="0.30"/>
-		</Border.Effect>
 
 		<Grid>
 			<Grid.ColumnDefinitions>
@@ -35,24 +36,32 @@
 
 			<!-- ===================== Sidebar ===================== -->
 			<Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}"
-					CornerRadius="14,0,0,14" MouseLeftButtonDown="Chrome_MouseLeftButtonDown">
+					CornerRadius="0" MouseLeftButtonDown="Chrome_MouseLeftButtonDown">
 				<DockPanel Margin="16,18,16,18">
 
 					<!-- Brand -->
 					<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,0,22">
-						<Image Source="pack://application:,,,/Assets/PictureDay_NoText.png"
+						<Image Source="pack://application:,,,/PictureDay;component/Assets/PictureDay_NoText.png"
 							   Width="30" Height="30" RenderOptions.BitmapScalingMode="HighQuality"/>
 						<StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
 							<TextBlock Text="PictureDay" FontSize="16" FontWeight="SemiBold"
 									   Foreground="{DynamicResource TextBrush}"/>
-							<TextBlock x:Name="VersionText" Text="v2.6.1" FontSize="11"
+							<TextBlock x:Name="VersionText" Text="v2.7.0" FontSize="11"
 									   Foreground="{DynamicResource TextSecondaryBrush}"/>
 						</StackPanel>
 					</StackPanel>
 
 					<!-- Bottom action stack -->
 					<StackPanel DockPanel.Dock="Bottom">
+						<Border Style="{StaticResource CardBorder}" Padding="12" Margin="0,0,0,14">
+							<StackPanel>
+								<TextBlock Text="DAILY CAPTURE" Style="{StaticResource SectionHeaderText}" FontSize="10"/>
+								<TextBlock x:Name="CaptureStatusText" Text="Getting ready" FontWeight="SemiBold" Margin="0,7,0,4" TextWrapping="Wrap"/>
+								<TextBlock x:Name="CaptureStatusDetail" Text="Your screenshots stay on this PC." Style="{StaticResource CaptionText}" TextWrapping="Wrap"/>
+							</StackPanel>
+						</Border>
 						<Button x:Name="TakeScreenshotButton" Style="{StaticResource AccentButton}"
+								ToolTip="Capture your screen (F12). Privacy filters still apply." AutomationProperties.Name="Take screenshot"
 								HorizontalAlignment="Stretch" Margin="0,0,0,8"
 								Click="TakeScreenshotButton_Click">
 							<StackPanel Orientation="Horizontal">
@@ -60,12 +69,13 @@
 									  Stroke="{DynamicResource AccentForegroundBrush}" StrokeThickness="1.6"
 									  Fill="Transparent"
 									  Data="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
-								<TextBlock Text="Take Screenshot" VerticalAlignment="Center"/>
+								<TextBlock x:Name="TakeScreenshotLabel" Text="Take Screenshot" VerticalAlignment="Center"/>
 							</StackPanel>
 						</Button>
 						<Button x:Name="OpenPhotosButton" Style="{StaticResource GhostButton}"
 								HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
 								Click="OpenPhotosButton_Click" Content="Open Photos Folder"/>
+						<TextBlock Text="F12 capture · Ctrl+W hide" Style="{StaticResource CaptionText}" FontSize="10" HorizontalAlignment="Center" Margin="0,5,0,0"/>
 						<Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="6,10"/>
 						<Grid>
 							<Grid.ColumnDefinitions>
@@ -87,7 +97,7 @@
 									HorizontalContentAlignment="Left" Padding="8,7" Margin="4,0,0,0"
 									Click="DonateButton_Click">
 								<StackPanel Orientation="Horizontal">
-									<Image Source="pack://application:,,,/Assets/Coffee.png" Width="16" Height="16" Margin="0,0,6,0"/>
+									<Image Source="pack://application:,,,/PictureDay;component/Assets/Coffee.png" Width="16" Height="16" Margin="0,0,6,0"/>
 									<TextBlock Text="Coffee" VerticalAlignment="Center"
 											   Foreground="{DynamicResource TextSecondaryBrush}"/>
 								</StackPanel>
@@ -98,7 +108,7 @@
 					<!-- Navigation -->
 					<StackPanel DockPanel.Dock="Top">
 						<RadioButton x:Name="GalleryNav" Style="{StaticResource NavItem}" GroupName="Nav" IsChecked="True"
-								 PreviewMouseLeftButtonDown="GalleryNav_PreviewMouseLeftButtonDown">
+								 AutomationProperties.Name="Gallery" Checked="GalleryNav_Checked">
 							<StackPanel Orientation="Horizontal">
 								<Path Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0"
 									  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
@@ -107,7 +117,7 @@
 								<TextBlock Text="Gallery" VerticalAlignment="Center"/>
 							</StackPanel>
 						</RadioButton>
-						<RadioButton x:Name="SettingsNav" Style="{StaticResource NavItem}" GroupName="Nav">
+						<RadioButton x:Name="SettingsNav" Style="{StaticResource NavItem}" GroupName="Nav" AutomationProperties.Name="Settings">
 							<StackPanel Orientation="Horizontal">
 								<Path Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0"
 									  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
@@ -131,9 +141,11 @@
 				<Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Chrome_MouseLeftButtonDown">
 					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0">
 						<Button Style="{StaticResource CaptionButton}" Click="MinimizeButton_Click"
-								Tag="M0,0 H10" ToolTip="Minimize"/>
+								Tag="M0,0 H10" ToolTip="Minimize" AutomationProperties.Name="Minimize"/>
+						<Button x:Name="MaximizeButton" Style="{StaticResource CaptionButton}" Click="MaximizeButton_Click"
+								Tag="M0,0 H10 V10 H0 Z" ToolTip="Maximize or restore" AutomationProperties.Name="Maximize or restore"/>
 						<Button Style="{StaticResource CloseCaptionButton}" Click="CloseButton_Click"
-								Tag="M0,0 L10,10 M10,0 L0,10" ToolTip="Close"/>
+								Tag="M0,0 L10,10 M10,0 L0,10" ToolTip="Hide to system tray (Ctrl+W)" AutomationProperties.Name="Hide to system tray"/>
 					</StackPanel>
 				</Grid>
 
@@ -162,12 +174,13 @@
 					<DropShadowEffect Color="{DynamicResource ShadowColor}" BlurRadius="24" ShadowDepth="5" Opacity="0.30"/>
 				</Border.Effect>
 				<StackPanel Orientation="Horizontal">
-					<Border Width="22" Height="22" CornerRadius="11" Background="#34C759" Margin="0,0,11,0">
-						<Path Data="M5 11 L9 15 L17 6" Stroke="White" StrokeThickness="2"
+					<Border x:Name="ToastIconBackground" Width="22" Height="22" CornerRadius="11" Background="#34C759" Margin="0,0,11,0">
+						<Path x:Name="ToastIcon" Data="M5 11 L9 15 L17 6" Stroke="White" StrokeThickness="2"
 							  StrokeEndLineCap="Round" StrokeStartLineCap="Round" StrokeLineJoin="Round"
 							  Stretch="Uniform" Margin="5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 					</Border>
 					<TextBlock x:Name="ToastText" Text="Saved" VerticalAlignment="Center"
+							   MaxWidth="650" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"
 							   FontSize="13.5" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
 				</StackPanel>
 			</Border>

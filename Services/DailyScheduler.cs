@@ -26,6 +26,10 @@ namespace PictureDay.Services
 		private DateTime _currentDayDate;
 		private Random _random = new Random();
 		private DateTime _lastTimerTick = DateTime.Now;
+		private int _tickInProgress;
+		private int _refreshRequested;
+		private int _resumeRequested;
+		private volatile bool _running;
 
 		public event EventHandler? PhotosProcessed;
 		public event EventHandler? ScheduledTimeChanged;
@@ -58,6 +62,8 @@ namespace PictureDay.Services
 
 		public void Start()
 		{
+			if (_running) return;
+			_running = true;
 			_lastTimerTick = DateTime.Now;
 			_monitoringTimer = new Timer(OnTimerTick, null, TimeSpan.Zero, TimeSpan.FromSeconds(MonitoringIntervalSeconds));
 			SystemEvents.PowerModeChanged += OnPowerModeChanged;
@@ -65,40 +71,71 @@ namespace PictureDay.Services
 
 		public void Stop()
 		{
+			_running = false;
 			SystemEvents.PowerModeChanged -= OnPowerModeChanged;
 			_monitoringTimer?.Dispose();
 			_monitoringTimer = null;
 		}
 
+		public void RequestScheduleRefresh()
+		{
+			Interlocked.Exchange(ref _refreshRequested, 1);
+			ThreadPool.QueueUserWorkItem(OnTimerTick);
+		}
+
 		private void OnTimerTick(object? state)
+		{
+			if (!_running || Interlocked.CompareExchange(ref _tickInProgress, 1, 0) != 0) return;
+			try
+			{
+				bool refreshRequested = Interlocked.Exchange(ref _refreshRequested, 0) == 1;
+				bool resumed = Interlocked.Exchange(ref _resumeRequested, 0) == 1;
+				ProcessTimerTick(state, refreshRequested, resumed);
+			}
+			catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Scheduler refresh failed: {ex}"); }
+			finally
+			{
+				Interlocked.Exchange(ref _tickInProgress, 0);
+				// Requests arriving during a capture should not wait for the next minute tick.
+				if (_running && (Volatile.Read(ref _refreshRequested) != 0 || Volatile.Read(ref _resumeRequested) != 0))
+					ThreadPool.QueueUserWorkItem(OnTimerTick);
+			}
+		}
+
+		private void HandleDayTransitions(DateTime now, bool refreshRequested, bool resumed)
+		{
+			TimeSpan elapsed = now - _lastTimerTick;
+			bool reset = false;
+			if (now.Date > _lastMidnightCheck)
+			{
+				// Finalize the old date before any reset replaces _currentDayDate with today.
+				_storageManager.ProcessDailyPhotoSelection(_currentDayDate);
+				ResetDay();
+				_lastMidnightCheck = now.Date;
+				_currentDayDate = now.Date;
+				reset = true;
+				PhotosProcessed?.Invoke(this, EventArgs.Empty);
+			}
+
+			if (refreshRequested)
+			{
+				if (!reset) ResetDay();
+				reset = true;
+				ScheduledTimeChanged?.Invoke(this, EventArgs.Empty);
+			}
+
+			// A short sleep can cross the end of a capture window too. Resume always checks.
+			if (!reset && (resumed || elapsed > TimeSpan.FromSeconds(MonitoringIntervalSeconds * 2)))
+				CheckAndRescheduleIfMissed(now);
+			_lastTimerTick = now;
+		}
+
+		private void ProcessTimerTick(object? state, bool refreshRequested, bool resumed)
 		{
 			try
 			{
 				DateTime now = DateTime.Now;
-				TimeSpan currentTime = now.TimeOfDay;
-
-				TimeSpan timeSinceLastTick = now - _lastTimerTick;
-				if (timeSinceLastTick.TotalMinutes > MonitoringIntervalSeconds * 2 / 60.0)
-				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Large time gap detected ({timeSinceLastTick.TotalMinutes:F1} minutes) - possible sleep/resume. Checking if scheduled time was missed...");
-					CheckAndRescheduleIfMissed(now);
-				}
-				_lastTimerTick = now;
-
-				if (now.Date > _lastMidnightCheck)
-				{
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] *** MIDNIGHT TRANSITION DETECTED ***");
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Processing photos for previous day: {_currentDayDate:yyyy-MM-dd}");
-					_storageManager.ProcessDailyPhotoSelection(_currentDayDate);
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Resetting day for new date: {now.Date:yyyy-MM-dd}");
-					ResetDay();
-					_lastMidnightCheck = now.Date;
-					_currentDayDate = now.Date;
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Day reset complete. New scheduled time: {_scheduledTime:hh\\:mm\\:ss}");
-
-					Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Notifying UI to refresh gallery...");
-					PhotosProcessed?.Invoke(this, EventArgs.Empty);
-				}
+				HandleDayTransitions(now, refreshRequested, resumed);
 
 				if (_dayCompleted)
 				{
@@ -174,9 +211,7 @@ namespace PictureDay.Services
 		{
 			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Determining new scheduled time (mode: {_configManager.Config.ScheduleMode})");
 			_scheduledTime = DetermineScheduledTime();
-			_configManager.Config.TodayScheduledTime = _scheduledTime;
-			_configManager.Config.ScheduledTimeDate = now.Date;
-			_configManager.SaveConfig();
+			_configManager.SetScheduledTime(_scheduledTime, now.Date);
 			Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Scheduled time set to: {_scheduledTime:hh\\:mm\\:ss}");
 
 			if (_configManager.Config.ScheduleMode == ScheduleMode.TimeRange &&
@@ -207,9 +242,7 @@ namespace PictureDay.Services
 			{
 				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Scheduled time ({_scheduledTime:hh\\:mm\\:ss}) has passed and no photo taken. Recalculating for rest of day...");
 				_scheduledTime = DetermineScheduledTime();
-				_configManager.Config.TodayScheduledTime = _scheduledTime;
-				_configManager.Config.ScheduledTimeDate = now.Date;
-				_configManager.SaveConfig();
+				_configManager.SetScheduledTime(_scheduledTime, now.Date);
 				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] New scheduled time set to: {_scheduledTime:hh\\:mm\\:ss}");
 
 				if (_configManager.Config.ScheduleMode == ScheduleMode.TimeRange &&
@@ -530,9 +563,9 @@ namespace PictureDay.Services
 
 			if (e.Mode == PowerModes.Resume)
 			{
-				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] System resumed from sleep/hibernate. Checking if scheduled time was missed...");
-				_lastTimerTick = now;
-				CheckAndRescheduleIfMissed(now);
+				// Preserve the resume signal even when a timer/capture callback is already running.
+				Interlocked.Exchange(ref _resumeRequested, 1);
+				ThreadPool.QueueUserWorkItem(OnTimerTick);
 			}
 		}
 
@@ -559,9 +592,7 @@ namespace PictureDay.Services
 			{
 				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] Scheduled time ({_scheduledTime:hh\\:mm\\:ss}) has passed and no photo taken. Recalculating for rest of day...");
 				_scheduledTime = DetermineScheduledTime();
-				_configManager.Config.TodayScheduledTime = _scheduledTime;
-				_configManager.Config.ScheduledTimeDate = now.Date;
-				_configManager.SaveConfig();
+				_configManager.SetScheduledTime(_scheduledTime, now.Date);
 				Console.WriteLine($"[{now:yyyy-MM-dd HH:mm:ss}] New scheduled time set to: {_scheduledTime:hh\\:mm\\:ss}");
 
 				if (_configManager.Config.ScheduleMode == ScheduleMode.TimeRange &&
@@ -588,4 +619,3 @@ namespace PictureDay.Services
 
 	}
 }
-
