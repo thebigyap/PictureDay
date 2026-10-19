@@ -41,6 +41,7 @@ internal sealed class PhotoViewerWindow : Window
     private bool _fitToWindow = true;
     private double _scale = 1;
     private Point? _dragPoint;
+    private Point _dragTarget;
 
     public PhotoViewerWindow(IReadOnlyList<ScreenshotMetadata> photos, int index)
     {
@@ -111,31 +112,25 @@ internal sealed class PhotoViewerWindow : Window
         imageHost.MouseLeftButtonDown += (_, e) =>
         {
             if (_scroll.ScrollableWidth <= 0 && _scroll.ScrollableHeight <= 0) return;
-            _dragPoint = e.GetPosition(_scroll);
+            _dragPoint = _dragTarget = e.GetPosition(_scroll);
             imageHost.CaptureMouse();
             imageHost.Cursor = Cursors.SizeAll;
+            // Pan once per frame: scrolling per mouse move rendered ~900 frames/s on a 1000 Hz mouse.
+            CompositionTarget.Rendering += ApplyDrag;
             e.Handled = true;
         };
         imageHost.MouseMove += (_, e) =>
         {
-            if (_dragPoint is not { } previous || e.LeftButton != MouseButtonState.Pressed) return;
-            var current = e.GetPosition(_scroll);
-            _scroll.ScrollToHorizontalOffset(_scroll.HorizontalOffset + previous.X - current.X);
-            _scroll.ScrollToVerticalOffset(_scroll.VerticalOffset + previous.Y - current.Y);
-            _dragPoint = current;
+            if (_dragPoint != null && e.LeftButton == MouseButtonState.Pressed) _dragTarget = e.GetPosition(_scroll);
         };
-        imageHost.MouseLeftButtonUp += (_, _) =>
-        {
-            _dragPoint = null;
-            imageHost.ReleaseMouseCapture();
-            imageHost.Cursor = Cursors.Arrow;
-        };
-        imageHost.LostMouseCapture += (_, _) => { _dragPoint = null; imageHost.Cursor = Cursors.Arrow; };
+        imageHost.MouseLeftButtonUp += (_, _) => imageHost.ReleaseMouseCapture();
+        imageHost.LostMouseCapture += (_, _) => { EndDrag(); imageHost.Cursor = Cursors.Arrow; };
         PreviewKeyDown += Viewer_KeyDown;
         Loaded += async (_, _) => { Activate(); Focus(); await LoadPhotoAsync(); };
         Closed += (_, _) =>
         {
             _closed = true;
+            EndDrag();
             _loadCancellation?.Cancel();
             _loadCancellation?.Dispose();
             _image.Source = null;
@@ -147,6 +142,22 @@ internal sealed class PhotoViewerWindow : Window
         var button = new Button { Content = text, ToolTip = description, Padding = new Thickness(12, 7, 12, 7), Margin = new Thickness(3, 0, 3, 0), MinWidth = 38 };
         AutomationProperties.SetName(button, description);
         return button;
+    }
+
+    private void ApplyDrag(object? sender, EventArgs e)
+    {
+        if (_dragPoint is not { } previous || previous == _dragTarget) return;
+        _scroll.ScrollToHorizontalOffset(_scroll.HorizontalOffset + previous.X - _dragTarget.X);
+        _scroll.ScrollToVerticalOffset(_scroll.VerticalOffset + previous.Y - _dragTarget.Y);
+        _dragPoint = _dragTarget;
+    }
+
+    private void EndDrag()
+    {
+        ApplyDrag(null, EventArgs.Empty);
+        _dragPoint = null;
+        // Rendering is a static event; leaving the handler attached would keep this window alive.
+        CompositionTarget.Rendering -= ApplyDrag;
     }
 
     private async Task NavigateAsync(int offset)

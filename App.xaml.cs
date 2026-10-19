@@ -12,7 +12,7 @@ namespace PictureDay
 {
 	public partial class App : Application
 	{
-		public const string Version = "2.7.0";
+		public const string Version = "2.7.1";
 
 		private NotifyIcon? _notifyIcon;
 		private NotificationService? _notificationService;
@@ -101,6 +101,7 @@ namespace PictureDay
 							mainWin.RefreshGallery();
 							DebugWriteLine("Photo gallery refreshed after midnight processing.");
 						}
+						ShrinkOldPhotosInBackground();
 					}));
 				};
 
@@ -155,6 +156,7 @@ namespace PictureDay
 				MainWindow = new MainWindow { WindowState = WindowState.Minimized };
 				MainWindow.Show();
 				MainWindow.Hide();
+				ShrinkOldPhotosInBackground();
 
 				DebugWriteLine("Initializing UpdateService...");
 				_updateService = new UpdateService();
@@ -241,6 +243,18 @@ namespace PictureDay
 			contextMenu.Items.Add("-");
 			contextMenu.Items.Add("Exit", null, (s, e) => Shutdown());
 			_notifyIcon.ContextMenuStrip = contextMenu;
+		}
+
+		/// <summary>Runs at startup, after midnight processing, and after settings are saved.</summary>
+		public async void ShrinkOldPhotosInBackground()
+		{
+			if (_storageManager is not { } storage || _configManager?.Config.ShrinkOldPhotos != true) return;
+			try
+			{
+				int shrunk = await Task.Run(() => storage.ShrinkPhotosOlderThan(DateTime.Today.AddMonths(-3)));
+				if (shrunk > 0 && MainWindow is MainWindow mainWin) mainWin.RefreshGallery();
+			}
+			catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Shrinking old photos failed: {ex}"); }
 		}
 
 		public async Task TakeManualScreenshotAsync()

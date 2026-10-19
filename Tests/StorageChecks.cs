@@ -16,7 +16,54 @@ namespace PictureDay.Tests
 			VerifyStreaks(Path.Combine(root, "streaks"));
 			VerifyRecovery(Path.Combine(root, "recovery"));
 			VerifyCapturesAndSettings(Path.Combine(root, "captures"));
-			Console.WriteLine("Storage checks passed: dates, ranges, ordering, streaks, recovery, collisions, image encoding, and destination changes.");
+			VerifyShrinking(Path.Combine(root, "shrink"));
+			Console.WriteLine("Storage checks passed: dates, ranges, ordering, streaks, recovery, collisions, image encoding, destination changes, and old-photo shrinking.");
+		}
+
+		private static void VerifyShrinking(string root)
+		{
+			var storage = new StorageManager(root, 100, "PNG");
+			DateTime old = DateTime.Today.AddMonths(-4).AddHours(12);
+			DateTime recent = DateTime.Today.AddMonths(-1).AddHours(12);
+			string oldPng = SaveNoisyPhoto(storage, root, old, ".png");
+			string recentPng = SaveNoisyPhoto(storage, root, recent, ".png");
+			storage.UpdateSettings(100, "JPEG");
+			string oldJpeg = SaveNoisyPhoto(storage, root, old.AddMinutes(1), ".jpg");
+			long oldJpegLength = new FileInfo(oldJpeg).Length;
+			DateTime oldPngCreated = File.GetCreationTime(oldPng);
+			byte[] recentBytes = File.ReadAllBytes(recentPng);
+
+			storage.UpdateSettings(80, "JPEG");
+			int shrunk = storage.ShrinkPhotosOlderThan(DateTime.Today.AddMonths(-3));
+			string convertedPng = Path.ChangeExtension(oldPng, ".jpg");
+			Assert(shrunk == 2, $"Both old photos should shrink, but {shrunk} did.");
+			Assert(!File.Exists(oldPng) && File.Exists(convertedPng), "An old PNG must be replaced by a JPEG with the same capture name.");
+			Assert(File.GetCreationTime(convertedPng) == oldPngCreated, "Converting a PNG must keep its creation time.");
+			Assert(new FileInfo(oldJpeg).Length < oldJpegLength * 9 / 10, "An old quality-100 JPEG must be re-saved smaller.");
+			Assert(File.GetLastWriteTime(oldJpeg) > old.AddDays(1), "A re-saved JPEG must be stamped so later passes skip it.");
+			Assert(File.ReadAllBytes(recentPng).SequenceEqual(recentBytes), "Photos newer than the cutoff must not change.");
+			Assert(storage.GetSnapshot().Screenshots.Select(photo => photo.DateTaken).OrderBy(date => date)
+				.SequenceEqual(new[] { old, old.AddMinutes(1), recent }), "Shrinking must keep every photo and its capture time.");
+			using (var image = Image.FromFile(convertedPng))
+				Assert(image.Width == 320 && image.Height == 200, "A shrunk photo must keep its dimensions.");
+			Assert(storage.ShrinkPhotosOlderThan(DateTime.Today.AddMonths(-3)) == 0, "Already shrunk photos must not be processed again.");
+			Assert(!Directory.EnumerateFiles(root, "*.tmp", SearchOption.AllDirectories).Any(), "Shrinking must leave no temporary files.");
+		}
+
+		/// <summary>Saves a capture-named photo with real image detail, dated like an original capture.</summary>
+		private static string SaveNoisyPhoto(StorageManager storage, string root, DateTime capturedAt, string extension)
+		{
+			var random = new Random(capturedAt.GetHashCode());
+			using var bitmap = new Bitmap(320, 200);
+			for (int y = 0; y < bitmap.Height; y++)
+				for (int x = 0; x < bitmap.Width; x++)
+					bitmap.SetPixel(x, y, Color.FromArgb((x * 3 + random.Next(40)) % 256, (y * 5 + random.Next(40)) % 256, random.Next(256)));
+			string directory = Path.Combine(root, capturedAt.ToString("yyyy-MM", CultureInfo.InvariantCulture));
+			Directory.CreateDirectory(directory);
+			string path = Path.Combine(directory, capturedAt.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture) + extension);
+			File.Move(storage.SaveScreenshot(bitmap), path);
+			File.SetLastWriteTime(path, capturedAt);
+			return path;
 		}
 
 		private static void VerifyMetadata(string root)

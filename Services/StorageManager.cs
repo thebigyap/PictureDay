@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using PictureDay.Models;
 
 namespace PictureDay.Services
@@ -19,7 +20,7 @@ namespace PictureDay.Services
 		private int _quality;
 		private string _imageFormat;
 
-		public StorageManager(string baseDirectory, int quality = 90, string imageFormat = "JPEG")
+		public StorageManager(string baseDirectory, int quality = 80, string imageFormat = "JPEG")
 		{
 			_baseDirectory = PrepareDirectory(baseDirectory);
 			_quality = Math.Clamp(quality, 1, 100);
@@ -84,17 +85,87 @@ namespace PictureDay.Services
 					{
 						if (_imageFormat == "PNG")
 							bitmap.Save(stream, ImageFormat.Png);
-						else if (JpegCodec.Value is ImageCodecInfo jpegCodec)
-						{
-							using var encoderParams = new EncoderParameters(1);
-							encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, (long)_quality);
-							bitmap.Save(stream, jpegCodec, encoderParams);
-						}
 						else
-							bitmap.Save(stream, ImageFormat.Jpeg);
+							SaveJpeg(bitmap, stream, _quality);
 						stream.Flush(true);
 					}
 					return MoveToAvailablePath(temporaryPath, requestedPath);
+				}
+				finally
+				{
+					TryDelete(temporaryPath);
+				}
+			}
+		}
+
+		private static void SaveJpeg(Image image, Stream stream, int quality)
+		{
+			if (JpegCodec.Value is ImageCodecInfo jpegCodec)
+			{
+				using var encoderParams = new EncoderParameters(1);
+				encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, (long)quality);
+				image.Save(stream, jpegCodec, encoderParams);
+			}
+			else
+				image.Save(stream, ImageFormat.Jpeg);
+		}
+
+		/// <summary>Re-saves photos captured before the cutoff as JPEGs at the current quality when that saves at least 10%.</summary>
+		/// <returns>The number of photos replaced with a smaller file.</returns>
+		public int ShrinkPhotosOlderThan(DateTime cutoff)
+		{
+			int shrunk = 0;
+			foreach (var photo in ReadScreenshots(ReadMonthDirectories(GetBaseDirectory())).screenshots)
+			{
+				// Captures are written once, so a write time near the capture time means the file is untouched.
+				// Shrinking or checking stamps it with the current time, so each photo is processed only once.
+				if (photo.DateTaken >= cutoff || File.GetLastWriteTime(photo.FilePath) > photo.DateTaken.AddDays(1))
+					continue;
+				try
+				{
+					if (ShrinkPhoto(photo.FilePath))
+						shrunk++;
+				}
+				catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is ExternalException)
+				{
+					// Locked or unreadable files are retried on the next pass.
+					Debug.WriteLine($"Could not shrink photo {photo.FilePath}: {ex.Message}");
+				}
+			}
+			return shrunk;
+		}
+
+		private bool ShrinkPhoto(string path)
+		{
+			// ponytail: holds the capture lock for one decode/encode (~0.3s on a 5760x2040 photo); encode outside it if captures ever wait noticeably.
+			lock (_sync)
+			{
+				var original = new FileInfo(path);
+				string temporaryPath = Path.Combine(original.DirectoryName!, $".{Guid.NewGuid():N}.tmp");
+				try
+				{
+					using (var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+					using (var image = Image.FromStream(input))
+					using (var output = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+					{
+						SaveJpeg(image, output, _quality);
+						output.Flush(true);
+					}
+					if (new FileInfo(temporaryPath).Length > original.Length * 9 / 10)
+					{
+						File.SetLastWriteTime(path, DateTime.Now);
+						return false;
+					}
+					if (original.Extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase))
+						File.Replace(temporaryPath, path, null);
+					else
+					{
+						// Publish the JPEG before removing the PNG so a crash leaves a duplicate, never a lost photo.
+						string jpegPath = MoveToAvailablePath(temporaryPath, Path.ChangeExtension(path, ".jpg"));
+						File.SetCreationTime(jpegPath, original.CreationTime);
+						File.Delete(path);
+					}
+					return true;
 				}
 				finally
 				{

@@ -6,6 +6,20 @@ This file is maintained by AI.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-10-19
+
+### Added
+
+- **Shrink older photos**: Photos older than 3 months are re-saved as JPEG at the quality setting when that saves at least 10%, including old PNGs. It runs at startup, after midnight processing, and after saving settings, and each photo is processed once. On by default, with a Settings toggle to turn it off.
+
+### Changed
+
+- **Default quality**: New installs capture JPEGs at quality 80 instead of 90.
+
+### Fixed
+
+- **Photo viewer panning**: Dragging a zoomed photo redrew the viewer once per mouse event (about 1,000 times a second with a 1000 Hz mouse). It now pans once per frame.
+
 ## [2.7.0] - 2026-10-19
 
 ### Added

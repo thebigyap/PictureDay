@@ -15,8 +15,10 @@ namespace PictureDay.Models
 		public List<string> BlockedApplications { get; set; } = new List<string>();
 		public string ScreenshotDirectory { get; set; } = string.Empty;
 	public DateTime? LastScreenshotDate { get; set; }
-	public int Quality { get; set; } = 90;
+	public int Quality { get; set; } = 80;
 	public string ImageFormat { get; set; } = "JPEG";
+	// Re-saves photos older than three months as JPEG at Quality when that saves space.
+	public bool ShrinkOldPhotos { get; set; } = true;
 	public bool StartWithWindows { get; set; } = true;
 	public TimeSpan? TodayScheduledTime { get; set; }
 	public DateTime? ScheduledTimeDate { get; set; }

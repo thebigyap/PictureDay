@@ -49,7 +49,8 @@ _Example screenshot captured by PictureDay, demonstrating the application's dail
 ### Screenshot Settings
 
 -   **Image Format**: Choose between JPEG or PNG
--   **Quality Control**: Adjustable JPEG quality (10-100)
+-   **Quality Control**: Adjustable JPEG quality (10-100, default 80)
+-   **Shrink Older Photos**: Photos older than 3 months are re-saved as JPEG at your quality setting when that saves at least 10%. Runs at startup, after midnight, and after saving settings. On by default; turn it off in Settings. Re-saving is permanent
 -   **Desktop Only Mode**: When enabled, automatically minimizes all windows before capturing, showing only the desktop background
 -   **Multi-Monitor Support**: Capture primary monitor, all monitors, or a specific monitor
 
@@ -143,6 +144,7 @@ Access settings via:
 
 -   Image format: JPEG or PNG
 -   JPEG quality slider (10-100, only applies to JPEG)
+-   Shrink older photos toggle (re-saves photos older than 3 months at the quality setting)
 
 **Storage**
 

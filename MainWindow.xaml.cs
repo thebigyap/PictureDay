@@ -92,6 +92,7 @@ namespace PictureDay
             GalleryNav.IsChecked = true;
             UpdateCaptureStatus();
             ShowToast("Settings saved");
+            (Application.Current as App)?.ShrinkOldPhotosInBackground();
         }
 
         public void UpdateCaptureStatus()

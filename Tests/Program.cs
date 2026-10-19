@@ -135,6 +135,9 @@ internal static class Program
         var settings = (SettingsView)main.FindName("SettingsViewControl");
         ((System.Windows.Controls.RadioButton)main.FindName("SettingsNav")).IsChecked = true;
         Render(content, 980, 660, Path.Combine(root, "settings-compact.png"));
+        Assert(((System.Windows.Controls.CheckBox)settings.FindName("ShrinkOldPhotosCheckBox")).IsChecked == true, "Shrinking old photos should load as on by default.");
+        ((FrameworkElement)settings.FindName("ShrinkOldPhotosCheckBox")).BringIntoView();
+        Render(content, 980, 660, Path.Combine(root, "settings-quality.png"));
         var empty = new StorageManager(Path.Combine(root, "empty"));
         gallery.Initialize(empty);
         await gallery.RefreshAsync();

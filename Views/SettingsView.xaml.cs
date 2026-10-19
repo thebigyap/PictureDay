@@ -53,6 +53,7 @@ namespace PictureDay.Views
 
 			// Track edits on controls that have no dedicated handler
 			StartWithWindowsCheckBox.Click += (s, e) => MarkDirty();
+			ShrinkOldPhotosCheckBox.Click += (s, e) => MarkDirty();
 			DirectoryTextBox.TextChanged += (s, e) => MarkDirty();
 			FixedTimeTextBox.TextChanged += (s, e) => MarkDirty();
 			RangeStartTimeTextBox.TextChanged += (s, e) => MarkDirty();
@@ -153,6 +154,7 @@ namespace PictureDay.Views
 
 			QualitySlider.Value = _configManager.Config.Quality;
 			QualityValueTextBlock.Text = _configManager.Config.Quality.ToString();
+			ShrinkOldPhotosCheckBox.IsChecked = _configManager.Config.ShrinkOldPhotos;
 
 			foreach (ComboBoxItem item in FormatComboBox.Items)
 			{
@@ -542,6 +544,7 @@ namespace PictureDay.Views
                 draft.BlockedApplications = new List<string>(_tempBlockedApps);
                 draft.StartWithWindows = StartWithWindowsCheckBox.IsChecked == true;
                 draft.Quality = (int)QualitySlider.Value;
+                draft.ShrinkOldPhotos = ShrinkOldPhotosCheckBox.IsChecked == true;
                 draft.ImageFormat = (FormatComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "JPEG";
                 draft.Theme = (ThemeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Light";
                 draft.CaptureAllMonitors = AllMonitorsRadio.IsChecked == true;

@@ -156,13 +156,26 @@
 								<ColumnDefinition Width="Auto"/>
 							</Grid.ColumnDefinitions>
 							<Slider x:Name="QualitySlider" Grid.Column="0" Minimum="10" Maximum="100"
-									Value="90" TickFrequency="10" IsSnapToTickEnabled="True"
+									Value="80" TickFrequency="10" IsSnapToTickEnabled="True"
 									VerticalAlignment="Center" Margin="0,0,16,0" ValueChanged="QualitySlider_ValueChanged"/>
 							<Border Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" CornerRadius="7"
 									BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1" Padding="12,6" MinWidth="52">
-								<TextBlock x:Name="QualityValueTextBlock" Text="90" TextAlignment="Center"
+								<TextBlock x:Name="QualityValueTextBlock" Text="80" TextAlignment="Center"
 										   FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
 							</Border>
+						</Grid>
+
+						<Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,18"/>
+
+						<Grid>
+							<StackPanel VerticalAlignment="Center">
+								<TextBlock Text="Shrink older photos" Style="{StaticResource HeadlineText}"/>
+								<TextBlock Text="Re-save photos older than 3 months as JPEG at this quality when it saves space. This can't be undone."
+										   Style="{StaticResource CaptionText}" Margin="0,2,0,0" TextWrapping="Wrap" MaxWidth="420" HorizontalAlignment="Left"/>
+							</StackPanel>
+							<CheckBox x:Name="ShrinkOldPhotosCheckBox" Style="{StaticResource ToggleSwitch}"
+									  HorizontalAlignment="Right" VerticalAlignment="Center"
+									  AutomationProperties.Name="Shrink photos older than 3 months"/>
 						</Grid>
 					</StackPanel>
 				</Border>
